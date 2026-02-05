@@ -8,4 +8,29 @@ interface Endpoint {
 };
 
 interface Connection {
+    [Async]
+    SendStream open_uni();
+    [Async]
+    RecvStream accept_uni();
+    [Async]
+    BiStream open_bi();
+    [Async]
+    BiStream accept_bi();
+};
+
+interface SendStream {
+    [Async]
+    void write(sequence<u8> data);
+    [Async]
+    void close();
+};
+
+interface RecvStream {
+    [Async]
+    sequence<u8>? read(u64 max_bytes);
+};
+
+dictionary BiStream {
+    SendStream send;
+    RecvStream recv;
 };
