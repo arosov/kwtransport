@@ -14,7 +14,7 @@ if (file("../../local.properties").exists()) {
     }
 }
 
-// Version management (matches shared module logic)
+// Version management (matches kwtransport module logic)
 val envVersion = System.getenv("VERSION")
 val finalVersion = if (!envVersion.isNullOrBlank()) {
     envVersion

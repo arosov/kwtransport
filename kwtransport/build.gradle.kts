@@ -124,7 +124,7 @@ kotlin {
         jvmTest.dependencies {
             // For testing, we depend on the native artifact of the current host
             val platform = getCurrentPlatform()
-            println("shared: jvmTest configuring native dependency for platform: $platform")
+            println("kwtransport: jvmTest configuring native dependency for platform: $platform")
             if (platform != "unknown") {
                 implementation(project(":native:$platform"))
             }
