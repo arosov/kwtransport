@@ -6,10 +6,23 @@ on:
       version:
         description: 'Version to publish (e.g., 0.1.0 or 0.1.0-SNAPSHOT)'
         required: true
+      publish-linux:
+        description: 'Publish Linux & Common (JS/WASM/Android)'
+        type: boolean
+        default: true
+      publish-windows:
+        description: 'Publish Windows'
+        type: boolean
+        default: true
+      publish-macos:
+        description: 'Publish macOS'
+        type: boolean
+        default: true
 
 jobs:
   publish-linux-and-common:
     name: Publish Linux & Common (JS/WASM/Android)
+    if: ${{ github.event.inputs.publish-linux == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,6 +91,7 @@ jobs:
 
   publish-windows:
     name: Publish Windows Binary
+    if: ${{ github.event.inputs.publish-windows == 'true' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -120,6 +134,7 @@ jobs:
 
   publish-macos:
     name: Publish macOS Binaries
+    if: ${{ github.event.inputs.publish-macos == 'true' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
