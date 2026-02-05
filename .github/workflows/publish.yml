@@ -28,6 +28,17 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+
+      - name: Run Smoke Tests
+        run: |
+          ./gradlew :shared:buildRust --no-configuration-cache
+          ./gradlew :shared:cleanJvmTest :shared:jvmTest --no-configuration-cache
+          ./scripts/run_browser_integration_tests.sh
+
       - name: Build and Publish
         run: |
           # Build and publish host-specific native binary
@@ -65,6 +76,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Run Smoke Tests
+        shell: bash
+        run: |
+          ./gradlew :shared:buildRust --no-configuration-cache
+          ./gradlew :shared:cleanJvmTest :shared:jvmTest --no-configuration-cache
+
       - name: Build and Publish
         shell: bash
         run: |
@@ -98,6 +115,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+
+      - name: Run Smoke Tests
+        run: |
+          ./gradlew :shared:buildRust --no-configuration-cache
+          ./gradlew :shared:cleanJvmTest :shared:jvmTest --no-configuration-cache
 
       - name: Build and Publish
         run: |
