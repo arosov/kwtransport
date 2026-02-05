@@ -9,19 +9,19 @@ on:
       publish-linux:
         description: 'Publish Linux & Common (JS/WASM/Android)'
         type: boolean
-        default: true
+        default: false
       publish-windows:
         description: 'Publish Windows'
         type: boolean
-        default: true
+        default: false
       publish-macos:
         description: 'Publish macOS'
         type: boolean
-        default: true
+        default: false
       publish-android-only:
         description: 'Publish ONLY Android (skips tests and other platforms)'
         type: boolean
-        default: false
+        default: true
 
 jobs:
   publish-linux-and-common:
