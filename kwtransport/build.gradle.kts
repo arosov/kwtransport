@@ -21,7 +21,7 @@ signing {
 
 // Android Rust build configuration
 cargoNdk {
-    module = "../kwtransport-ffi"
+    module = "kwtransport-ffi"
     targets = arrayListOf("arm64", "arm", "x86", "x86_64")
 }
 
