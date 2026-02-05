@@ -7,7 +7,7 @@ This phase focuses on exposing the necessary `wtransport` functionality via UniF
     - [ ] Create `kwtransport-ffi/src/api.udl` (or use proc-macros if preferred, but UDL is standard for simple interfaces).
     - [ ] Implement `Endpoint` creation logic in Rust.
     - [ ] Implement `connect` method returning a `Connection`.
-- [ ] Task: Define `uniffi` interface for Reliable Streams.
+- [x] Task: Define `uniffi` interface for Reliable Streams. [3ad56c4]
     - [ ] Add `open_uni_stream` and `accept_uni_stream` to `Connection`.
     - [ ] Add `open_bi_stream` and `accept_bi_stream` to `Connection`.
     - [ ] Define `SendStream` and `RecvStream` interfaces with `read` and `write` methods.
