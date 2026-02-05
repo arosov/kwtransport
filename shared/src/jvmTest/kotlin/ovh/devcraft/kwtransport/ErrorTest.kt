@@ -32,7 +32,8 @@ class ErrorTest {
             try {
                 server.incomingSessions().collect { connection ->
                     println("Server accepted connection")
-                    // Wait a bit or handshake?
+                    // Wait a bit to ensure handshake is fully processed on both sides
+                    kotlinx.coroutines.delay(100)
                     // Close with specific code and reason
                     connection.close(42L, "Goodbye")
                 }

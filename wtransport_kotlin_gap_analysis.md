@@ -46,7 +46,7 @@ The current Kotlin `Endpoint.createServerEndpoint` exposes:
 
 ## 5. Streams
 
-- **Stream Priority**: QUIC/WebTransport supports stream prioritization, which is not exposed.
+- **Stream Priority**: Supported. `SendStream.setPriority` / `SendStream.getPriority`.
 - **Unidirectional Streams Management**: While supported, the API for managing the *number* of concurrent streams (flow control) is implicit via `acceptUni`/`openUni` but explicit limits (MaxConcurrentStreams) are not configurable.
 
 ## Recommendation

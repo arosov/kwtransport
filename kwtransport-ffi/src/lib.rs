@@ -589,6 +589,37 @@ mod jni {
                          }
                      });
                 }
+                
+                pub extern "jni" fn setPriority(_env: &JNIEnv, handle: i64, priority: i32, id: i64) {
+                     let stream = unsafe { Arc::from_raw(handle as *const Mutex<NativeSendStream>) };
+                     let stream_clone = Arc::clone(&stream);
+                     std::mem::forget(stream);
+
+                     RUNTIME.spawn(async move {
+                         let guard = stream_clone.lock().await;
+                         guard.0.set_priority(priority);
+                         
+                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
+                         let env = vm.attach_current_thread().expect("Failed to attach thread");
+                         let _ = JniHelper::onNotify(&env, id, 1, "".to_string(), "".to_string(), 0, "".to_string());
+                     });
+                }
+
+                pub extern "jni" fn getPriority(_env: &JNIEnv, handle: i64, id: i64) {
+                     let stream = unsafe { Arc::from_raw(handle as *const Mutex<NativeSendStream>) };
+                     let stream_clone = Arc::clone(&stream);
+                     std::mem::forget(stream);
+
+                     RUNTIME.spawn(async move {
+                         let guard = stream_clone.lock().await;
+                         let priority = guard.0.priority();
+                         
+                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
+                         let env = vm.attach_current_thread().expect("Failed to attach thread");
+                         let _ = JniHelper::onNotify(&env, id, priority as i64, "".to_string(), "".to_string(), 0, "".to_string());
+                     });
+                }
+
                 pub extern "jni" fn destroy(handle: i64) {
                     if handle != 0 {
                         unsafe { 

@@ -16,9 +16,9 @@ class IntegrationTest {
 
     @Test
     fun `should perform full bidirectional round trip`() = runTest {
-        val serverAddr = "127.0.0.1:4433"
         val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
-        val serverEndpoint = Endpoint.createServerEndpoint(serverAddr, cert)
+        val serverEndpoint = Endpoint.createServerEndpoint("127.0.0.1:0", cert)
+        val serverAddr = serverEndpoint.localAddr
         val clientEndpoint = Endpoint.createClientEndpoint(acceptAllCerts = true)
 
         try {
@@ -33,8 +33,6 @@ class IntegrationTest {
                     }
                 }
             }
-
-            delay(200)
 
             clientEndpoint.connect("https://$serverAddr/webtransport").use { conn ->
                 val pair = conn.openBi()
@@ -57,13 +55,13 @@ class IntegrationTest {
 
     @Test
     fun `stress test with many concurrent streams`() = runTest(timeout = 60000L.milliseconds) {
-        val serverAddr = "127.0.0.1:4434"
         val concurrentStreams = 30
         val messagesPerStream = 5
         val completedStreams = AtomicInteger(0)
 
         val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
-        val serverEndpoint = Endpoint.createServerEndpoint(serverAddr, cert)
+        val serverEndpoint = Endpoint.createServerEndpoint("127.0.0.1:0", cert)
+        val serverAddr = serverEndpoint.localAddr
         val clientEndpoint = Endpoint.createClientEndpoint(acceptAllCerts = true)
 
         try {
@@ -85,8 +83,6 @@ class IntegrationTest {
                     jobs.joinAll()
                 }
             }
-
-            delay(500)
 
             clientEndpoint.connect("https://$serverAddr/webtransport").use { conn ->
                 val streamJobs = (1..concurrentStreams).map { i ->
