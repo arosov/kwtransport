@@ -9,15 +9,15 @@ on:
       publish-linux:
         description: 'Publish Linux & Common (JS/WASM/Android)'
         type: boolean
-        default: false
+        default: true
       publish-windows:
         description: 'Publish Windows'
         type: boolean
-        default: false
+        default: true
       publish-macos:
         description: 'Publish macOS'
         type: boolean
-        default: false
+        default: true
       publish-android-debug:
         description: 'Publish Android DEBUG variant'
         type: boolean
