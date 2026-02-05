@@ -1,10 +1,64 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.concurrent.TimeUnit
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.vanniktech.publish)
+}
+
+// Load local.properties into project properties so the publishing plugin can see them
+if (file("../local.properties").exists()) {
+    val localProperties = Properties()
+    file("../local.properties").inputStream().use { localProperties.load(it) }
+    localProperties.forEach { key, value ->
+        project.extensions.extraProperties.set(key.toString(), value)
+    }
+}
+
+// Override version from environment variable if provided
+val envVersion = System.getenv("VERSION")
+val finalVersion = if (!envVersion.isNullOrBlank()) {
+    val versionRegex = """^\d+\.\d+\.\d+(-SNAPSHOT)?$""".toRegex()
+    if (!versionRegex.matches(envVersion)) {
+        throw GradleException("Invalid VERSION environment variable: '$envVersion'. Expected x.y.z or x.y.z-SNAPSHOT")
+    }
+    envVersion
+} else {
+    project.findProperty("VERSION_NAME")?.toString() ?: "0.0.0"
+}
+
+project.version = finalVersion
+project.extensions.extraProperties.set("VERSION_NAME", finalVersion)
+
+mavenPublishing {
+    pom {
+        name.set("kwtransport")
+        description.set("High-Performance WebTransport for Kotlin Multiplatform")
+        url.set("https://github.com/arosov/kwtransport")
+        licenses {
+            license {
+                name.set("MIT License")
+                url.set("https://opensource.org/licenses/MIT")
+            }
+        }
+        developers {
+            developer {
+                id.set("arosov")
+                name.set("Alexis Rosovsky")
+            }
+        }
+        scm {
+            connection.set("scm:git:git://github.com/arosov/kwtransport.git")
+            developerConnection.set("scm:git:ssh://github.com/arosov/kwtransport.git")
+            url.set("https://github.com/arosov/kwtransport")
+        }
+    }
+
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
 }
 
 kotlin {
