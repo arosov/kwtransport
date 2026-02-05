@@ -62,6 +62,13 @@ tasks.named("jvmProcessResources") {
     dependsOn(buildRustTask)
 }
 
+tasks.withType<Test> {
+    testLogging {
+        showStandardStreams = true
+        events("passed", "skipped", "failed")
+    }
+}
+
 android {
     namespace = "ovh.devcraft.kwtransport.shared"
     compileSdk = libs.versions.android.compileSdk.get().toInt()

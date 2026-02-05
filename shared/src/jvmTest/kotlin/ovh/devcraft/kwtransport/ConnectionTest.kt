@@ -21,8 +21,9 @@ class ConnectionTest {
 
     @Test
     fun testConnectConnectionRefused() {
-        val endpoint = Endpoint.createClientEndpoint()
-        // Connect to a port that is likely closed
+        // Use a short timeout to avoid hanging the test suite
+        val endpoint = Endpoint.createClientEndpoint(acceptAllCerts = true, maxIdleTimeoutMillis = 500L)
+        
         assertFailsWith<KwTransportException> {
             endpoint.connect("https://127.0.0.1:12345/webtransport")
         }

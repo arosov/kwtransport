@@ -7,7 +7,11 @@ class Endpoint internal constructor(private var handle: Long) : AutoCloseable {
         }
 
         @JvmStatic
-        private external fun createClient(bindAddr: String, acceptAllCerts: Boolean): Long
+        private external fun createClient(
+            bindAddr: String, 
+            acceptAllCerts: Boolean, 
+            maxIdleTimeoutMillis: Long
+        ): Long
 
         @JvmStatic
         private external fun createServer(bindAddr: String, certHandle: Long): Long
@@ -21,8 +25,12 @@ class Endpoint internal constructor(private var handle: Long) : AutoCloseable {
         @JvmStatic
         private external fun acceptSession(handle: Long): Long
 
-        fun createClientEndpoint(bindAddr: String = "127.0.0.1:0", acceptAllCerts: Boolean = false): Endpoint {
-            val handle = createClient(bindAddr, acceptAllCerts)
+        fun createClientEndpoint(
+            bindAddr: String = "127.0.0.1:0", 
+            acceptAllCerts: Boolean = false,
+            maxIdleTimeoutMillis: Long = 30000L
+        ): Endpoint {
+            val handle = createClient(bindAddr, acceptAllCerts, maxIdleTimeoutMillis)
             return Endpoint(handle)
         }
 

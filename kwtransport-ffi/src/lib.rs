@@ -6,6 +6,7 @@ mod jni {
     use robusta_jni::jni::JNIEnv;
     use robusta_jni::jni::objects::{JObject, JValue};
     use std::net::SocketAddr;
+    use std::time::Duration;
     use crate::{NativeEndpoint, NativeConnection, NativeSendStream, NativeRecvStream, NativeIdentity, RUNTIME};
     use wtransport::{ClientConfig, ServerConfig, Identity};
     use wtransport::error::{ConnectingError, ConnectionError, StreamOpeningError, SendDatagramError};
@@ -33,7 +34,8 @@ mod jni {
     pub struct Endpoint;
 
     impl Endpoint {
-        pub extern "jni" fn createClient(env: &JNIEnv, bind_addr: String, accept_all_certs: bool) -> JniResult<i64> {
+        #[call_type(unchecked)]
+        pub extern "jni" fn createClient(env: &JNIEnv, bind_addr: String, accept_all_certs: bool, max_idle_timeout_millis: i64) -> JniResult<i64> {
             let _guard = RUNTIME.enter();
             
             let addr: SocketAddr = match bind_addr.parse() {
@@ -47,11 +49,17 @@ mod jni {
             let builder = ClientConfig::builder()
                 .with_bind_address(addr);
             
-            let client_config = if accept_all_certs {
-                builder.with_no_cert_validation().build()
+            let mut builder = if accept_all_certs {
+                builder.with_no_cert_validation()
             } else {
-                builder.with_native_certs().build()
+                builder.with_native_certs()
             };
+            
+            if max_idle_timeout_millis > 0 {
+                builder = builder.max_idle_timeout(Some(Duration::from_millis(max_idle_timeout_millis as u64))).unwrap();
+            }
+            
+            let client_config = builder.build();
 
             let endpoint = match wtransport::Endpoint::client(client_config) {
                 Ok(e) => e,
@@ -64,6 +72,7 @@ mod jni {
             Ok(Box::into_raw(Box::new(NativeEndpoint::Client(endpoint))) as i64)
         }
 
+        #[call_type(unchecked)]
         pub extern "jni" fn createServer(env: &JNIEnv, bind_addr: String, cert_handle: i64) -> JniResult<i64> {
             let _guard = RUNTIME.enter();
             
@@ -93,6 +102,7 @@ mod jni {
             Ok(Box::into_raw(Box::new(NativeEndpoint::Server(endpoint))) as i64)
         }
 
+        #[call_type(unchecked)]
         pub extern "jni" fn connect(env: &JNIEnv, handle: i64, url: String) -> JniResult<i64> {
             let _guard = RUNTIME.enter();
             let native_endpoint = unsafe { &*(handle as *const NativeEndpoint) };
@@ -177,6 +187,7 @@ mod jni {
     pub struct Connection;
 
     impl Connection {
+        #[call_type(unchecked)]
         pub extern "jni" fn openUni(env: &JNIEnv, handle: i64) -> JniResult<i64> {
             let _guard = RUNTIME.enter();
             let native_connection = unsafe { &*(handle as *const NativeConnection) };
@@ -200,6 +211,7 @@ mod jni {
             Ok(Box::into_raw(Box::new(NativeSendStream(stream))) as i64)
         }
 
+        #[call_type(unchecked)]
         pub extern "jni" fn openBi<'env>(env: &JNIEnv<'env>, handle: i64) -> JniResult<JObject<'env>> {
             let _guard = RUNTIME.enter();
             let native_connection = unsafe { &*(handle as *const NativeConnection) };
