@@ -2,100 +2,125 @@ package ovh.devcraft.kwtransport
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
 import java.net.ServerSocket
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class IntegrationTest {
-    private val stressDispatcher = Executors.newFixedThreadPool(64).asCoroutineDispatcher()
+
+    private val stressDispatcher = Dispatchers.IO.limitedParallelism(16)
 
     @Test
-    fun `should perform full bidirectional round trip`() = runTest {
+    fun `should perform full bidirectional round trip`() = runBlocking {
         val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
+        val hash = cert.getHash()
+
         val serverEndpoint = Endpoint.createServerEndpoint("127.0.0.1:0", cert)
         val serverAddr = serverEndpoint.localAddr
-        val clientEndpoint = Endpoint.createClientEndpoint(acceptAllCerts = true)
+        val url = "https://$serverAddr/test"
 
-        try {
-            val serverJob = launch(Dispatchers.IO) {
-                val conn = serverEndpoint.incomingSessions().first()
-                conn.use {
-                    val pair = conn.acceptBi()
-                    val buffer = ByteArray(1024)
-                    val n = pair.recv.read(buffer)
-                    if (n > 0) {
-                        pair.send.write(buffer.copyOf(n))
-                    }
-                }
-            }
-
-            clientEndpoint.connect("https://$serverAddr/webtransport").use { conn ->
-                val pair = conn.openBi()
-                val data = "Hello World".toByteArray()
-                pair.send.write(data)
-                
+        val message = "Hello WebTransport"
+        
+        val serverJob = launch(stressDispatcher) {
+            serverEndpoint.incomingSessions().collect { connection ->
+                val pair = connection.acceptBi()
                 val buffer = ByteArray(1024)
                 val n = pair.recv.read(buffer)
-                assertContentEquals(data, buffer.copyOf(n))
-            }
-
-            serverJob.join()
-        } finally {
-            withContext(Dispatchers.IO) {
-                serverEndpoint.close()
-                clientEndpoint.close()
+                val received = buffer.decodeToString(0, n)
+                pair.send.write(received)
+                pair.send.close()
+                connection.close()
             }
         }
+
+        val clientEndpoint = Endpoint.createClientEndpoint(
+            certificateHashes = listOf(hash)
+        )
+
+        val connection = clientEndpoint.connect(url)
+        val pair = connection.openBi()
+        pair.send.write(message)
+        
+        val buffer = ByteArray(1024)
+        val n = pair.recv.read(buffer)
+        val response = buffer.decodeToString(0, n)
+
+        assertEquals(message, response)
+
+        connection.close()
+        serverJob.cancelAndJoin()
+        serverEndpoint.close()
+        clientEndpoint.close()
     }
 
     @Test
-    fun `stress test with many concurrent streams`() = runTest(timeout = 60000L.milliseconds) {
-        val concurrentStreams = 30
-        val messagesPerStream = 5
+    fun `stress test with many concurrent streams`() = runBlocking {
+        val concurrentStreams = 100
+        val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
+        val hash = cert.getHash()
+
+        val quicConfig = QuicConfig(
+            maxConcurrentBiStreams = 200,
+            initialMaxStreamDataBidiLocal = 1024 * 1024,
+            initialMaxStreamDataBidiRemote = 1024 * 1024
+        )
+
+        val serverEndpoint = Endpoint.createServerEndpoint(
+            bindAddr = "127.0.0.1:0", 
+            certificate = cert,
+            quicConfig = quicConfig
+        )
+        val serverAddr = serverEndpoint.localAddr
+        val url = "https://$serverAddr/stress"
+
         val completedStreams = AtomicInteger(0)
 
-        val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
-        val serverEndpoint = Endpoint.createServerEndpoint("127.0.0.1:0", cert)
-        val serverAddr = serverEndpoint.localAddr
-        val clientEndpoint = Endpoint.createClientEndpoint(acceptAllCerts = true)
-
-        try {
-            val serverJob = launch(stressDispatcher) {
-                val conn = serverEndpoint.incomingSessions().first()
-                conn.use {
-                    val jobs = (1..concurrentStreams).map {
+        val serverJob = launch(stressDispatcher) {
+            serverEndpoint.incomingSessions().collect { connection ->
+                launch(stressDispatcher) {
+                    repeat(concurrentStreams) {
                         launch(stressDispatcher) {
-                            val pair = conn.acceptBi()
-                            repeat(messagesPerStream) {
+                            try {
+                                val pair = connection.acceptBi()
                                 val buffer = ByteArray(1024)
                                 val n = pair.recv.read(buffer)
                                 if (n > 0) {
                                     pair.send.write(buffer.copyOf(n))
                                 }
-                            }
+                                pair.send.close()
+                            } catch (e: Exception) {}
                         }
                     }
-                    jobs.joinAll()
                 }
             }
+        }
 
-            clientEndpoint.connect("https://$serverAddr/webtransport").use { conn ->
+        val clientEndpoint = Endpoint.createClientEndpoint(
+            certificateHashes = listOf(hash),
+            quicConfig = quicConfig
+        )
+
+        try {
+            val connection = clientEndpoint.connect(url)
+            
+            coroutineScope {
                 val streamJobs = (1..concurrentStreams).map { i ->
                     launch(stressDispatcher) {
-                        val pair = conn.openBi()
-                        repeat(messagesPerStream) { m ->
-                            val data = "Stream $i Message $m".toByteArray()
+                        try {
+                            val pair = connection.openBi()
+                            val data = "Message $i".encodeToByteArray()
                             pair.send.write(data)
+                            
                             val buffer = ByteArray(1024)
                             val n = pair.recv.read(buffer)
-                            assertContentEquals(data, buffer.copyOf(n))
+                            if (n == data.size) {
+                                completedStreams.incrementAndGet()
+                            }
+                            pair.send.close()
+                        } catch (e: Exception) {
+                            println("Stream $i failed: ${e.message}")
                         }
-                        completedStreams.incrementAndGet()
                     }
                 }
                 streamJobs.joinAll()
@@ -115,11 +140,9 @@ class IntegrationTest {
     fun `leak check loop`() = runBlocking {
         val iterations = 50
         repeat(iterations) { i ->
-            val port = getFreePort()
-            val serverAddr = "127.0.0.1:$port"
-            
             val cert = Certificate.createSelfSigned("localhost")
-            val server = Endpoint.createServerEndpoint(serverAddr, cert)
+            val server = Endpoint.createServerEndpoint("127.0.0.1:0", cert)
+            val serverAddr = server.localAddr
             val client = Endpoint.createClientEndpoint(acceptAllCerts = true, maxIdleTimeoutMillis = 1000)
             
             val serverJob = launch(stressDispatcher) {

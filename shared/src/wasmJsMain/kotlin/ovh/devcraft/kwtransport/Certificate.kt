@@ -10,3 +10,7 @@ actual class Certificate : Closeable {
 actual fun createSelfSignedCertificate(vararg sans: String): Certificate {
     return Certificate()
 }
+
+actual fun createCertificateFromPem(certificatePem: String, privateKeyPem: String): Certificate {
+    return Certificate()
+}

@@ -870,7 +870,55 @@ lazy_static! {
     #[package(ovh.devcraft.kwtransport)]
     pub struct Certificate;
 
+    use wtransport::tls::{CertificateChain, PrivateKey, Certificate as WCertificate};
+
     impl Certificate {
+        pub extern "jni" fn fromPem(env: &JNIEnv, cert_pem: String, key_pem: String) -> JniResult<i64> {
+             let _guard = RUNTIME.enter();
+             
+             // Use types already imported at module level: CertificateDer, PrivateKeyDer
+             let cert_ders = match CertificateDer::pem_slice_iter(cert_pem.as_bytes())
+                 .collect::<Result<Vec<_>, _>>() {
+                 Ok(c) => c,
+                 Err(e) => {
+                     let _ = env.throw_new("java/lang/IllegalArgumentException", format!("Invalid certificate PEM: {}", e));
+                     return Ok(0);
+                 }
+             };
+
+             let mut certs = Vec::new();
+             for der in cert_ders {
+                 match WCertificate::from_der(der.to_vec()) {
+                     Ok(c) => certs.push(c),
+                     Err(e) => {
+                         let _ = env.throw_new("java/lang/IllegalArgumentException", format!("Invalid certificate DER: {}", e));
+                         return Ok(0);
+                     }
+                 }
+             }
+             let certificate_chain = CertificateChain::new(certs);
+
+             let private_key_der = match PrivateKeyDer::from_pem_slice(key_pem.as_bytes()) {
+                 Ok(k) => k,
+                 Err(e) => {
+                     let _ = env.throw_new("java/lang/IllegalArgumentException", format!("Invalid private key PEM: {}", e));
+                     return Ok(0);
+                 }
+             };
+
+             let private_key = match private_key_der {
+                 PrivateKeyDer::Pkcs8(der) => PrivateKey::from_der_pkcs8(der.secret_pkcs8_der().to_vec()),
+                 _ => {
+                     let _ = env.throw_new("java/lang/IllegalArgumentException", "Only PKCS#8 private keys are supported");
+                     return Ok(0);
+                 }
+             };
+
+             let identity = Identity::new(certificate_chain, private_key);
+             ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+             Ok(Arc::into_raw(Arc::new(NativeIdentity(identity))) as i64)
+        }
+
         pub extern "jni" fn selfSigned(env: &JNIEnv, sans: Vec<String>) -> JniResult<i64> {
              let _guard = RUNTIME.enter();
              match Identity::self_signed(sans) {

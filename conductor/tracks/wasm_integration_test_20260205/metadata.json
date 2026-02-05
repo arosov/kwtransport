@@ -1,0 +1,8 @@
+{
+  "track_id": "wasm_integration_test_20260205",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-05T14:30:00Z",
+  "updated_at": "2026-02-05T14:30:00Z",
+  "description": "WASM Integration Test Setup: JVM test server and automated browser tests."
+}

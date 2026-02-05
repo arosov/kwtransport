@@ -11,14 +11,19 @@ actual class Endpoint internal constructor(
     private val certificateHashes: List<String> = emptyList()
 ) : Closeable {
     actual suspend fun connect(url: String): Connection {
+        println("WASM: Connecting to $url")
         try {
             val options = if (certificateHashes.isNotEmpty()) {
+                println("WASM: Building options for hashes: ${certificateHashes.joinToString()}")
                 val opts = createJsWebTransportOptions()
                 val jsHashes = JsArray<JsWebTransportHash>()
                 for (i in certificateHashes.indices) {
                     val h = createJsWebTransportHash()
                     h.algorithm = "sha-256"
-                    h.value = hexToJsUint8Array(certificateHashes[i])
+                    val bytes = hexToBytes(certificateHashes[i])
+                    val jsBytes = bytes.toJsUint8Array()
+                    println("WASM: Hash $i length: ${uint8Array_length(jsBytes)}")
+                    h.value = jsBytes
                     jsHashes.set(i, h)
                 }
                 opts.serverCertificateHashes = jsHashes
@@ -27,24 +32,39 @@ actual class Endpoint internal constructor(
                 null
             }
 
-            val jsTransport = JsWebTransport(url, options)
-            jsTransport.ready.await<JsAny?>()
+            println("WASM: Instantiating JsWebTransport")
+            val jsTransport = try {
+                JsWebTransport(url, options)
+            } catch (e: Throwable) {
+                val errStr = e.message ?: "Constructor failed"
+                println("WASM: Constructor threw: $errStr")
+                throw KwTransportException("Constructor failed: $errStr")
+            }
+            
+            println("WASM: Waiting for ready promise...")
+            try {
+                jsTransport.ready.await<JsAny?>()
+            } catch (e: Throwable) {
+                val errStr = e.message ?: "Ready rejected"
+                println("WASM: Ready promise rejected: $errStr")
+                throw KwTransportException("Ready rejected: $errStr")
+            }
+            
+            println("WASM: WebTransport ready")
             return Connection(jsTransport)
         } catch (e: Throwable) {
-            throw KwTransportException("Failed to connect: ${e.message}")
+            val finalMsg = if (e is KwTransportException) e.message!! else "Unexpected error: ${e.message}"
+            println("WASM: Connection final failure: $finalMsg")
+            throw KwTransportException(finalMsg)
         }
     }
 
-    private fun hexToJsUint8Array(hex: String): JsUint8Array {
+    private fun hexToBytes(hex: String): ByteArray {
         val cleanHex = hex.replace(":", "").replace(" ", "")
-        val bytes = cleanHexToBytes(cleanHex)
-        return bytes.toJsUint8Array()
-    }
-
-    private fun cleanHexToBytes(hex: String): ByteArray {
-        val result = ByteArray(hex.length / 2)
-        for (i in 0 until hex.length step 2) {
-            result[i / 2] = hex.substring(i, i + 2).toInt(16).toByte()
+        val result = ByteArray(cleanHex.length / 2)
+        for (i in 0 until cleanHex.length step 2) {
+            val byte = cleanHex.substring(i, i + 2).toInt(16).toByte()
+            result[i / 2] = byte
         }
         return result
     }

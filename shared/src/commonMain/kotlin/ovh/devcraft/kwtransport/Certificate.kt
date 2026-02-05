@@ -6,3 +6,4 @@ expect class Certificate : Closeable {
 }
 
 expect fun createSelfSignedCertificate(vararg sans: String): Certificate
+expect fun createCertificateFromPem(certificatePem: String, privateKeyPem: String): Certificate

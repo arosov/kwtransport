@@ -1,13 +1,12 @@
 package ovh.devcraft.kwtransport
 
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import ovh.devcraft.kwtransport.exceptions.ConnectionException
 import ovh.devcraft.kwtransport.exceptions.ConnectionErrorType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
 
 class ErrorTest {
 
@@ -17,7 +16,7 @@ class ErrorTest {
     }
 
     @Test
-    fun testApplicationCloseError() = runTest {
+    fun testApplicationCloseError() = runBlocking {
         val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
         val hash = cert.getHash()
 
@@ -33,7 +32,7 @@ class ErrorTest {
                 server.incomingSessions().collect { connection ->
                     println("Server accepted connection")
                     // Wait a bit to ensure handshake is fully processed on both sides
-                    kotlinx.coroutines.delay(100)
+                    kotlinx.coroutines.delay(500)
                     // Close with specific code and reason
                     connection.close(42L, "Goodbye")
                 }

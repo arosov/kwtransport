@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.concurrent.TimeUnit
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -7,13 +8,20 @@ plugins {
 }
 
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
     
-    jvm()
+    jvm {
+        compilerOptions {
+            // JVM doesn't need these opt-ins, they are WASM-specific
+        }
+    }
     
     js {
         browser()
@@ -22,11 +30,15 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
+        binaries.executable()
+        compilerOptions {
+            freeCompilerArgs.add("-opt-in=kotlin.js.ExperimentalWasmJsInterop")
+            freeCompilerArgs.add("-opt-in=kotlin.js.ExperimentalJsExport")
+        }
     }
     
     sourceSets {
         commonMain.dependencies {
-            // put your Multiplatform dependencies here
             implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
@@ -95,12 +107,48 @@ tasks.withType<Test> {
         events("passed", "skipped", "failed")
     }
     
-    val excludePattern = project.findProperty("excludeTests") as? String
-    if (excludePattern != null) {
-        filter {
-             excludeTestsMatching(excludePattern)
+    filter {
+        val excludePattern = project.findProperty("excludeTests") as? String
+        if (excludePattern != null) {
+            excludeTestsMatching(excludePattern)
+        }
+        
+        // Exclude stress test by default, but allow enabling via -PincludeStressTests
+        if (!project.hasProperty("includeStressTests")) {
+            excludeTestsMatching("ovh.devcraft.kwtransport.FfiStressTest")
         }
     }
+}
+
+// Manual server classpath printer for convenience
+tasks.register("printTestClasspath") {
+    dependsOn("jvmJar", "jvmTestProcessResources", "compileTestKotlinJvm")
+    
+    val jvmTestRuntimeClasspathFiles = configurations.getByName("jvmTestRuntimeClasspath").incoming.files
+    val compileKotlinJvmTask = tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlinJvm")
+    val compileTestKotlinJvmTask = tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestKotlinJvm")
+    val jvmTestProcessResourcesTask = tasks.named("jvmTestProcessResources")
+
+    val testClassesDir = compileTestKotlinJvmTask.flatMap { it.destinationDirectory }
+    val mainClassesDir = compileKotlinJvmTask.flatMap { it.destinationDirectory }
+    val testResourcesFiles = jvmTestProcessResourcesTask.map { it.outputs.files }
+    
+    val classpathFiles = objects.fileCollection().from(
+        jvmTestRuntimeClasspathFiles,
+        mainClassesDir,
+        testClassesDir,
+        testResourcesFiles
+    )
+
+    doLast {
+        println("CLASSPATH=" + classpathFiles.asPath)
+    }
+}
+
+tasks.named("wasmJsTest") {
+}
+
+tasks.named("jsTest") {
 }
 
 android {

@@ -14,6 +14,9 @@ actual class Certificate internal constructor(handle: Long) : Closeable {
         private external fun selfSigned(sans: List<String>): Long
 
         @JvmStatic
+        private external fun fromPem(certPem: String, keyPem: String): Long
+
+        @JvmStatic
         private external fun getHash(handle: Long): String
 
         @JvmStatic
@@ -25,6 +28,12 @@ actual class Certificate internal constructor(handle: Long) : Closeable {
         fun createSelfSigned(vararg sans: String): Certificate {
             val handle = selfSigned(sans.toList())
             if (handle == 0L) throw RuntimeException("Failed to create self-signed certificate")
+            return Certificate(handle)
+        }
+
+        fun createFromPem(certPem: String, keyPem: String): Certificate {
+            val handle = fromPem(certPem, keyPem)
+            if (handle == 0L) throw RuntimeException("Failed to create certificate from PEM")
             return Certificate(handle)
         }
     }
@@ -52,4 +61,8 @@ actual class Certificate internal constructor(handle: Long) : Closeable {
 
 actual fun createSelfSignedCertificate(vararg sans: String): Certificate {
     return Certificate.createSelfSigned(*sans)
+}
+
+actual fun createCertificateFromPem(certificatePem: String, privateKeyPem: String): Certificate {
+    return Certificate.createFromPem(certificatePem, privateKeyPem)
 }
