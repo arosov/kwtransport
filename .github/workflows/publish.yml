@@ -19,9 +19,9 @@ on:
         type: boolean
         default: true
       publish-android-debug:
-        description: 'Publish Android DEBUG variant'
+        description: 'Publish ONLY Android DEBUG (skips tests and other platforms)'
         type: boolean
-        default: true
+        default: false
 
 jobs:
   publish-linux-and-common:
