@@ -1,5 +1,7 @@
 package ovh.devcraft.kwtransport
 
-actual interface Closeable {
-    actual fun close()
+actual interface Closeable : AutoCloseable {
+
+    actual override fun close()
+
 }
