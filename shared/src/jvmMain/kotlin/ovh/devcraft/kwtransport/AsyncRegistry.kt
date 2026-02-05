@@ -68,10 +68,11 @@ internal object AsyncRegistry {
     private fun mapException(errorType: String, errorMessage: String, errorCode: Long, errorContext: String): KwTransportException {
         return when (errorType) {
             "CONNECTING" -> ConnectingException(errorMessage, ConnectingErrorType.CONNECTION_ERROR)
-            "CONNECTION" -> ConnectionException(errorMessage, ConnectionErrorType.QUIC_PROTO, errorCode, errorContext.ifEmpty { null })
+            "CONNECTION", "QUIC_PROTO" -> ConnectionException(errorMessage, ConnectionErrorType.QUIC_PROTO, errorCode, errorContext.ifEmpty { null })
             "CONNECTION_CLOSED" -> ConnectionException(errorMessage, ConnectionErrorType.CONNECTION_CLOSED, errorCode, errorContext.ifEmpty { null })
             "APPLICATION_CLOSED" -> ConnectionException(errorMessage, ConnectionErrorType.APPLICATION_CLOSED, errorCode, errorContext.ifEmpty { null })
             "LOCALLY_CLOSED" -> ConnectionException(errorMessage, ConnectionErrorType.LOCALLY_CLOSED)
+            "LOCAL_H3_ERROR" -> ConnectionException(errorMessage, ConnectionErrorType.QUIC_PROTO) // Map to protocol error
             "TIMED_OUT" -> ConnectionException(errorMessage, ConnectionErrorType.TIMED_OUT)
             "INVALID_URL" -> ConnectingException(errorMessage, ConnectingErrorType.INVALID_URL)
             "DNS_LOOKUP" -> ConnectingException(errorMessage, ConnectingErrorType.DNS_LOOKUP)
@@ -82,7 +83,10 @@ internal object AsyncRegistry {
             "CIDS_EHAUSTED" -> ConnectingException(errorMessage, ConnectingErrorType.CIDS_EXHAUSTED)
             "INVALID_SERVER_NAME" -> ConnectingException(errorMessage, ConnectingErrorType.INVALID_SERVER_NAME)
             "INVALID_REMOTE_ADDRESS" -> ConnectingException(errorMessage, ConnectingErrorType.INVALID_REMOTE_ADDRESS)
-            else -> KwTransportException(errorMessage)
+            else -> {
+                println("Unknown error type from Rust: type=$errorType, message=$errorMessage, code=$errorCode, context=$errorContext")
+                KwTransportException(errorMessage)
+            }
         }
     }
 }

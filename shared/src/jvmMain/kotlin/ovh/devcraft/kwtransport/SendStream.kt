@@ -1,5 +1,6 @@
 package ovh.devcraft.kwtransport
 
+import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicLong
 
 class SendStream internal constructor(handle: Long) : AutoCloseable {
@@ -28,6 +29,10 @@ class SendStream internal constructor(handle: Long) : AutoCloseable {
         val (id, deferred) = AsyncRegistry.createDeferred()
         write(h, data, id)
         deferred.await()
+    }
+
+    suspend fun write(data: String, charset: Charset = Charsets.UTF_8) {
+        write(data.toByteArray(charset))
     }
 
     suspend fun setPriority(priority: Int) {

@@ -113,7 +113,8 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
             return if (size < 0) null else size
         }
 
-    fun close(code: Long, reason: String) {
+    @JvmOverloads
+    fun close(code: Long = 0L, reason: String = "") {
         val h = handle.getAndSet(0L)
         if (h != 0L) {
             close(h, code, reason)

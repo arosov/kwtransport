@@ -70,8 +70,14 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
             rootCerts: List<Certificate>? = null,
             customDnsResolver: CustomDnsResolver? = null
         ): Endpoint {
-            val certHandle = clientCertificate?.handle?.getAndSet(0L) ?: 0L
-            val rootHandles = rootCerts?.map { it.handle.getAndSet(0L) } ?: emptyList()
+            val certHandle = clientCertificate?.handle?.get() ?: 0L
+            if (clientCertificate != null && certHandle == 0L) throw IllegalStateException("Client certificate is closed")
+
+            val rootHandles = rootCerts?.map {
+                val handle = it.handle.get()
+                if (handle == 0L) throw IllegalStateException("Root certificate is closed")
+                handle
+            } ?: emptyList()
             val dnsResolverId = customDnsResolver?.let { AsyncRegistry.registerObject(it) } ?: 0L
             
             val handle = createClient(
@@ -98,7 +104,7 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
             ipv6DualStackConfig: Int = IPV6_DUAL_STACK_DEFAULT,
             quicConfig: QuicConfig? = null
         ): Endpoint {
-            val certHandle = certificate.handle.getAndSet(0L)
+            val certHandle = certificate.handle.get()
             if (certHandle == 0L) throw IllegalStateException("Certificate is already used or closed")
             val handle = createServer(
                 bindAddr, 

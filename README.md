@@ -1,74 +1,89 @@
-This is a Kotlin Multiplatform project targeting Android, Web, Server.
+# kwtransport: High-Performance WebTransport for Kotlin Multiplatform
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-    folder is the appropriate location.
+`kwtransport` is a Kotlin Multiplatform library that provides a high-performance wrapper around the `wtransport` Rust crate, bringing WebTransport capabilities to your Kotlin applications across JVM, Android, and WebAssembly (WASM) targets. It aims to offer an idiomatic and robust Kotlin API for establishing WebTransport connections, managing streams, and handling datagrams with efficiency and ease.
 
-* [/server](./server/src/main/kotlin) is for the Ktor server application.
+## Features
 
-* [/shared](./shared/src) is for the code that will be shared between all targets in the project.
-  The most important subfolder is [commonMain](./shared/src/commonMain/kotlin). If preferred, you
-  can add code to the platform-specific folders here too.
+*   **Kotlin Multiplatform:** Write once, run on JVM, Android, and WASM.
+*   **High Performance:** Leverages the battle-tested `wtransport` Rust crate for underlying WebTransport protocol implementation.
+*   **Asynchronous API:** Built with Kotlin Coroutines and `Flow` for modern, non-blocking network operations.
+*   **Clean Architecture:** Designed with clear separation of concerns, making it easy to integrate into your projects.
+*   **Reliable Stream & Datagram Handling:** Provides intuitive APIs for unidirectional, bidirectional streams, and unreliable datagrams.
+*   **TLS Certificate Management:** Integrated handling for self-signed and trusted TLS certificates.
 
-### Build and Run Android Application
+## Getting Started
 
-To build and run the development version of the Android app, use the run configuration from the run widget
-in your IDE’s toolbar or build it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:assembleDebug
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:assembleDebug
-  ```
+To get started with `kwtransport`, ensure you have Java (JDK 17 or higher) and a recent version of the Kotlin Multiplatform plugin for Gradle installed.
 
-### Build and Run Server
+### Building the Project
 
-To build and run the development version of the server, use the run configuration from the run widget
-in your IDE’s toolbar or run it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :server:run
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :server:run
-  ```
+To build the entire project:
 
-### Build and Run Web Application
+```bash
+./gradlew build
+```
 
-To build and run the development version of the web app, use the run configuration from the run widget
-in your IDE's toolbar or run it directly from the terminal:
-- for the Wasm target (faster, modern browsers):
-  - on macOS/Linux
-    ```shell
-    ./gradlew :composeApp:wasmJsBrowserDevelopmentRun
-    ```
-  - on Windows
-    ```shell
-    .\gradlew.bat :composeApp:wasmJsBrowserDevelopmentRun
-    ```
-- for the JS target (slower, supports older browsers):
-  - on macOS/Linux
-    ```shell
-    ./gradlew :composeApp:jsBrowserDevelopmentRun
-    ```
-  - on Windows
-    ```shell
-    .\gradlew.bat :composeApp:jsBrowserDevelopmentRun
-    ```
+### Running the Sample Application
+
+The `composeApp` module contains a sample application demonstrating `kwtransport` usage. To run it on the JVM:
+
+```bash
+./gradlew :composeApp:run
+```
+
+### Running Tests
+
+To run JVM tests for the `shared` module:
+
+```bash
+./gradlew :shared:cleanJvmTest :shared:jvmTest
+```
+
+For other modules or specific targets, replace `:shared` and `:jvmTest` as per the project's [Gradle module conventions](AGENTS.md#gradle-module-conventions).
+
+## API Overview
+
+The core of the `kwtransport` API resides in the `shared` module, primarily within the `ovh.devcraft.kwtransport` package. Key classes include:
+
+*   `Endpoint`: The entry point for creating client and server WebTransport endpoints.
+*   `Connection`: Represents an established WebTransport connection, allowing the opening and accepting of streams and sending/receiving datagrams.
+*   `SendStream`: For sending data over a WebTransport stream.
+*   `RecvStream`: For receiving data from a WebTransport stream, including a `Flow<ByteArray>` API for convenient consumption.
+*   `Certificate`: Utility for managing TLS certificates.
+*   `KwTransportException` and subclasses: Comprehensive exception hierarchy for robust error handling.
+
+For detailed code examples demonstrating how to use these components, please see the [**Usage Examples documentation**](docs/examples.md).
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+## Credits
+
+`kwtransport` is built upon the excellent work of the `wtransport` Rust crate, an implementation of the WebTransport (over HTTP3) protocol.
+
+**`wtransport` Author:** Biagio Festa
+**`wtransport` Repository:** [https://github.com/BiagioFesta/wtransport](https://github.com/BiagioFesta/wtransport)
 
 ---
+**MIT License**
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+Copyright (c) 2026 Your Name or Organization
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

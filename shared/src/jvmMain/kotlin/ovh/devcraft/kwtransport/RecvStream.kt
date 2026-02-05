@@ -1,5 +1,7 @@
 package ovh.devcraft.kwtransport
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import java.util.concurrent.atomic.AtomicLong
 
 class RecvStream internal constructor(handle: Long) : AutoCloseable {
@@ -23,6 +25,20 @@ class RecvStream internal constructor(handle: Long) : AutoCloseable {
         read(h, buffer, id)
         val result = deferred.await()
         return result.toInt()
+    }
+
+    fun chunks(chunkSize: Int = 8192): Flow<ByteArray> {
+        require(chunkSize > 0) { "chunkSize must be positive" }
+        return flow {
+            val buffer = ByteArray(chunkSize)
+            while (true) {
+                val bytesRead = read(buffer)
+                if (bytesRead <= 0) {
+                    break
+                }
+                emit(buffer.copyOf(bytesRead))
+            }
+        }
     }
 
     override fun close() {
