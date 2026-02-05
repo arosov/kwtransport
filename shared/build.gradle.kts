@@ -8,6 +8,11 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.vanniktech.publish)
     alias(libs.plugins.cargo.ndk.android)
+    signing
+}
+
+signing {
+    useGpgCmd()
 }
 
 // Android Rust build configuration
@@ -21,7 +26,11 @@ if (file("../local.properties").exists()) {
     val localProperties = Properties()
     file("../local.properties").inputStream().use { localProperties.load(it) }
     localProperties.forEach { key, value ->
-        project.extensions.extraProperties.set(key.toString(), value)
+        val k = key.toString()
+        project.extensions.extraProperties.set(k, value)
+        // Map to GPG specific properties if needed
+        if (k == "signing.keyId") project.extensions.extraProperties.set("signing.gnupg.keyName", value)
+        if (k == "signing.password") project.extensions.extraProperties.set("signing.gnupg.passphrase", value)
     }
 }
 
