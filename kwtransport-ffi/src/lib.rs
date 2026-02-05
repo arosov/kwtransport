@@ -568,6 +568,13 @@ mod jni {
             Ok(obj)
         }
 
+        pub extern "jni" fn maxDatagramSize(handle: i64) -> i64 {
+            let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
+            let res = conn.0.max_datagram_size().map(|s| s as i64).unwrap_or(-1);
+            std::mem::forget(conn);
+            res
+        }
+
         pub extern "jni" fn close(_env: &JNIEnv, handle: i64, code: i64, reason: String) {
             let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
             let var_int_code = wtransport::VarInt::try_from(code as u64).unwrap_or(wtransport::VarInt::from_u32(0));

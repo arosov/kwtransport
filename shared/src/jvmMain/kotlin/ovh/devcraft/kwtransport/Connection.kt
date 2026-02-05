@@ -34,6 +34,9 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
         private external fun getStats(handle: Long): ConnectionStats
 
         @JvmStatic
+        private external fun maxDatagramSize(handle: Long): Long
+
+        @JvmStatic
         private external fun close(handle: Long, code: Long, reason: String)
     }
 
@@ -101,6 +104,14 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
         if (h == 0L) throw IllegalStateException("Connection is closed")
         return getStats(h)
     }
+
+    val maxDatagramSize: Long?
+        get() {
+            val h = handle.get()
+            if (h == 0L) throw IllegalStateException("Connection is closed")
+            val size = maxDatagramSize(h)
+            return if (size < 0) null else size
+        }
 
     fun close(code: Long, reason: String) {
         val h = handle.getAndSet(0L)
