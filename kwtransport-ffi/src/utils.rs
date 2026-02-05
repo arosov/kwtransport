@@ -1,0 +1,22 @@
+pub fn apply_transport_config(config: &mut wtransport::config::QuicTransportConfig, settings: &[i64]) {
+    use wtransport::quinn::VarInt;
+    
+    if let Some(&val) = settings.get(0) {
+        if val >= 0 { let _ = config.max_concurrent_bidi_streams(VarInt::try_from(val as u64).unwrap_or(VarInt::MAX)); }
+    }
+    if let Some(&val) = settings.get(1) {
+        if val >= 0 { let _ = config.max_concurrent_uni_streams(VarInt::try_from(val as u64).unwrap_or(VarInt::MAX)); }
+    }
+    if let Some(&val) = settings.get(2) {
+        // initialMaxData -> receive_window
+        if val >= 0 { let _ = config.receive_window(VarInt::try_from(val as u64).unwrap_or(VarInt::MAX)); }
+    }
+    if let Some(&val) = settings.get(3) {
+        // initialMaxStreamDataBidiLocal -> stream_receive_window
+        if val >= 0 { let _ = config.stream_receive_window(VarInt::try_from(val as u64).unwrap_or(VarInt::MAX)); }
+    }
+    
+    if let Some(&val) = settings.get(6) {
+        if val >= 0 { let _ = config.datagram_receive_buffer_size(Some(val as usize)); }
+    }
+}

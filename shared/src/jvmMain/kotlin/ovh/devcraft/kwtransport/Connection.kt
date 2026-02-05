@@ -29,6 +29,9 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
         
         @JvmStatic
         private external fun receiveDatagram(handle: Long, id: Long)
+
+        @JvmStatic
+        private external fun getStats(handle: Long): ConnectionStats
     }
 
     suspend fun openUni(): SendStream {
@@ -88,6 +91,12 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
         val data = DatagramHelper.getData(datagramHandle)
         DatagramHelper.destroy(datagramHandle)
         return data
+    }
+
+    fun getStats(): ConnectionStats {
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Connection is closed")
+        return getStats(h)
     }
 
     override fun close() {

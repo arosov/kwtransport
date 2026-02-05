@@ -10,7 +10,7 @@ name = "kwtransport_ffi"
 [dependencies]
 robusta_jni = "0.2"
 jni = "0.21"
-wtransport = { path = "../wtransport/wtransport", features = ["dangerous-configuration"] }
+wtransport = { path = "../wtransport/wtransport", features = ["dangerous-configuration", "quinn"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
 anyhow = "1.0"

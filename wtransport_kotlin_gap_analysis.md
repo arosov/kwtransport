@@ -1,0 +1,49 @@
+# wtransport vs. kwtransport: Gap Analysis
+
+This document outlines the features available in the underlying `wtransport` Rust crate that are currently **missing** or **not exposed** in the `kwtransport` Kotlin wrapper.
+
+## 1. Client Configuration (`ClientConfig`)
+
+The current Kotlin `Endpoint.createClientEndpoint` exposes:
+- `bindAddr`: Bind address.
+- `acceptAllCerts`: Boolean toggle (Native Certs vs. No Validation).
+- `maxIdleTimeoutMillis`: Idle timeout.
+- **Certificate Pinning (`certificateHashes`)**: Supported.
+- **Keep-Alive Interval (`keepAliveIntervalMillis`)**: Supported.
+- **IPv6 Dual Stack (`ipv6DualStackConfig`)**: Supported.
+- **Custom Transport Config (`quicConfig`)**: Supported (stream limits, flow control, buffer sizes).
+
+### Missing Features:
+- **Advanced TLS Config (`with_custom_tls`)**: Passing a full `rustls::ClientConfig` (e.g., for client authentication or custom Root CA stores).
+- **Custom DNS Resolver (`dns_resolver`)**: Ability to plug in a custom DNS resolver (currently hardcoded to `TokioDnsResolver`). (Low Priority / High Complexity)
+- **Bind to Pre-existing Socket (`with_bind_socket`)**: Ability to pass an existing `UdpSocket`.
+
+## 2. Server Configuration (`ServerConfig`)
+
+The current Kotlin `Endpoint.createServerEndpoint` exposes:
+- `bindAddr`: Bind address.
+- `certificate`: Identity (cert + key).
+- **Max Idle Timeout (`maxIdleTimeoutMillis`)**: Supported.
+- **Keep-Alive Interval (`keepAliveIntervalMillis`)**: Supported.
+- **Migration Support (`allowMigration`)**: Supported.
+- **IPv6 Dual Stack (`ipv6DualStackConfig`)**: Supported.
+- **Custom Transport Config (`quicConfig`)**: Supported.
+
+### Missing Features:
+- **Bind to Pre-existing Socket (`with_bind_socket`)**: Ability to pass an existing `UdpSocket`.
+- **Advanced TLS Config (`with_custom_tls`)**: Custom `rustls::ServerConfig`.
+
+## 3. Events & Observability
+
+- **Connection Stats**: Supported (`rttMs`, `lostPackets`, `sentPackets`, `congestionEvents`).
+- **Datagram Events**: The current API has `sendDatagram` / `receiveDatagram`, but `wtransport` (via Quinn) exposes more granular events or stats which might be useful. (Medium Priority)
+- **Congestion Control**: No exposure of congestion controller statistics or configuration. (Low Priority)
+
+## 4. Error Handling (High Priority)
+
+- **Error Granularity**: The JNI bridge maps some errors, but `wtransport` has a rich error hierarchy (`ConnectionError`, `StreamError`, etc.) that is partially flattened.
+- **Disconnection Reasons**: The exact reason code/message for a disconnection might not always be fully propagated or typed in Kotlin.
+
+## Recommendation
+
+Prioritize **Error Handling** improvements next. Providing richer error types and disconnection reasons allows applications to implement robust recovery logic.

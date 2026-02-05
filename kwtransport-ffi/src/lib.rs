@@ -1,7 +1,9 @@
 use robusta_jni::bridge;
-use std::sync::atomic::{AtomicI64, Ordering};
 
-pub static ACTIVE_OBJECT_COUNT: AtomicI64 = AtomicI64::new(0);
+pub mod errors;
+pub mod objects;
+pub mod runtime;
+pub mod utils;
 
 #[bridge]
 mod jni {
@@ -11,15 +13,20 @@ mod jni {
     use std::net::SocketAddr;
     use std::time::Duration;
     use std::sync::atomic::Ordering;
-    use crate::{
+    
+    use crate::objects::{
         NativeEndpoint, NativeConnection, NativeSendStream, NativeRecvStream, NativeIdentity, 
         NativeStreamPair, NativeDatagram,
         PtrSend, PtrSendConnection, PtrSendSendStream, PtrSendRecvStream,
-        RUNTIME, JAVA_VM, EndpointInner,
-        map_conn_err, map_stream_err, map_send_datagram_err
+        EndpointInner
     };
+    use crate::runtime::{RUNTIME, JAVA_VM, ACTIVE_OBJECT_COUNT};
+    use crate::errors::{map_conn_err, map_stream_err, map_send_datagram_err};
+    use crate::utils::apply_transport_config;
+    
     use wtransport::{ClientConfig, ServerConfig, Identity};
-    use wtransport::error::{ConnectingError, ConnectionError, StreamOpeningError, SendDatagramError};
+    use wtransport::config::Ipv6DualStackConfig;
+    use wtransport::error::{ConnectingError, ConnectionError};
 
     #[package(ovh.devcraft.kwtransport)]
     pub struct KwTransport;
@@ -29,7 +36,7 @@ mod jni {
             "Hello from Rust!".to_string()
         }
         pub extern "jni" fn getDiagnosticCount() -> i64 {
-            crate::ACTIVE_OBJECT_COUNT.load(Ordering::Relaxed)
+            ACTIVE_OBJECT_COUNT.load(Ordering::Relaxed)
         }
     }
 
@@ -49,7 +56,16 @@ mod jni {
 
     impl Endpoint {
         #[call_type(unchecked)]
-        pub extern "jni" fn createClient(env: &JNIEnv, bind_addr: String, accept_all_certs: bool, max_idle_timeout_millis: i64) -> JniResult<i64> {
+        pub extern "jni" fn createClient(
+            env: &JNIEnv, 
+            bind_addr: String, 
+            accept_all_certs: bool, 
+            max_idle_timeout_millis: i64,
+            certificate_hashes: Vec<String>,
+            keep_alive_interval_millis: i64,
+            ipv6_dual_stack_config: i32,
+            quic_config: Vec<i64>
+        ) -> JniResult<i64> {
             let _ = JAVA_VM.set(env.get_java_vm().unwrap());
             let _guard = RUNTIME.enter();
             
@@ -60,11 +76,31 @@ mod jni {
                     return Ok(0);
                 }
             };
+
+            let dual_stack_config = match ipv6_dual_stack_config {
+                1 => Ipv6DualStackConfig::Allow,
+                2 => Ipv6DualStackConfig::Deny,
+                _ => Ipv6DualStackConfig::OsDefault,
+            };
             
-            let builder = ClientConfig::builder()
-                .with_bind_address(addr);
+            let builder = match addr {
+                SocketAddr::V4(_) => ClientConfig::builder().with_bind_address(addr),
+                SocketAddr::V6(addr_v6) => ClientConfig::builder().with_bind_address_v6(addr_v6, dual_stack_config),
+            };
             
-            let builder = if accept_all_certs {
+            let builder = if !certificate_hashes.is_empty() {
+                let mut hashes = Vec::new();
+                for h_str in certificate_hashes {
+                    match h_str.parse::<wtransport::tls::Sha256Digest>() {
+                        Ok(h) => hashes.push(h),
+                        Err(_) => {
+                            let _ = env.throw_new("java/lang/IllegalArgumentException", format!("Invalid certificate hash: {}", h_str));
+                            return Ok(0);
+                        }
+                    }
+                }
+                builder.with_server_certificate_hashes(hashes)
+            } else if accept_all_certs {
                 builder.with_no_cert_validation()
             } else {
                 builder.with_native_certs()
@@ -74,8 +110,18 @@ mod jni {
             if max_idle_timeout_millis > 0 {
                 builder = builder.max_idle_timeout(Some(Duration::from_millis(max_idle_timeout_millis as u64))).unwrap();
             }
+
+            if keep_alive_interval_millis > 0 {
+                builder = builder.keep_alive_interval(Some(Duration::from_millis(keep_alive_interval_millis as u64)));
+            }
             
-            let client_config = builder.build();
+            let mut client_config = builder.build();
+            
+            if !quic_config.is_empty() {
+                let mut transport_config = wtransport::config::QuicTransportConfig::default();
+                apply_transport_config(&mut transport_config, &quic_config);
+                client_config.quic_config_mut().transport_config(std::sync::Arc::new(transport_config));
+            }
 
             let endpoint = match wtransport::Endpoint::client(client_config) {
                 Ok(e) => e,
@@ -85,12 +131,21 @@ mod jni {
                 }
             };
             
-            crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+            ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
             Ok(Box::into_raw(Box::new(NativeEndpoint::new_client(endpoint))) as i64)
         }
 
         #[call_type(unchecked)]
-        pub extern "jni" fn createServer(env: &JNIEnv, bind_addr: String, cert_handle: i64) -> JniResult<i64> {
+        pub extern "jni" fn createServer(
+            env: &JNIEnv, 
+            bind_addr: String, 
+            cert_handle: i64,
+            max_idle_timeout_millis: i64,
+            keep_alive_interval_millis: i64,
+            allow_migration: bool,
+            ipv6_dual_stack_config: i32,
+            quic_config: Vec<i64>
+        ) -> JniResult<i64> {
             let _ = JAVA_VM.set(env.get_java_vm().unwrap());
             let _guard = RUNTIME.enter();
             
@@ -103,12 +158,36 @@ mod jni {
             };
 
             let identity = unsafe { Box::from_raw(cert_handle as *mut NativeIdentity) }.0;
-            crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+            ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
 
-            let server_config = ServerConfig::builder()
-                .with_bind_address(addr)
-                .with_identity(identity)
-                .build();
+            let dual_stack_config = match ipv6_dual_stack_config {
+                1 => Ipv6DualStackConfig::Allow,
+                2 => Ipv6DualStackConfig::Deny,
+                _ => Ipv6DualStackConfig::OsDefault,
+            };
+
+            let mut builder = match addr {
+                SocketAddr::V4(_) => ServerConfig::builder().with_bind_address(addr),
+                SocketAddr::V6(addr_v6) => ServerConfig::builder().with_bind_address_v6(addr_v6, dual_stack_config),
+            }.with_identity(identity);
+
+            if max_idle_timeout_millis > 0 {
+                builder = builder.max_idle_timeout(Some(Duration::from_millis(max_idle_timeout_millis as u64))).unwrap();
+            }
+
+            if keep_alive_interval_millis > 0 {
+                builder = builder.keep_alive_interval(Some(Duration::from_millis(keep_alive_interval_millis as u64)));
+            }
+
+            builder = builder.allow_migration(allow_migration);
+
+            let mut server_config = builder.build();
+
+             if !quic_config.is_empty() {
+                let mut transport_config = wtransport::config::QuicTransportConfig::default();
+                apply_transport_config(&mut transport_config, &quic_config);
+                server_config.quic_config_mut().transport_config(std::sync::Arc::new(transport_config));
+            }
 
             let endpoint = match wtransport::Endpoint::server(server_config) {
                 Ok(e) => e,
@@ -118,7 +197,7 @@ mod jni {
                 }
             };
             
-            crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+            ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
             Ok(Box::into_raw(Box::new(NativeEndpoint::new_server(endpoint))) as i64)
         }
 
@@ -140,7 +219,7 @@ mod jni {
                 match result {
                     Ok(connection) => {
                         let conn_handle = Box::into_raw(Box::new(NativeConnection(connection))) as i64;
-                        crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                        ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                         let _ = JniHelper::onNotify(&env, id, conn_handle, "".to_string(), "".to_string());
                     }
                     Err(e) => {
@@ -191,7 +270,7 @@ mod jni {
                              match result {
                                  Ok(connection) => {
                                      let conn_handle = Box::into_raw(Box::new(NativeConnection(connection))) as i64;
-                                     crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                                     ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                                      let _ = JniHelper::onNotify(&env, id, conn_handle, "".to_string(), "".to_string());
                                  }
                                  Err(e) => {
@@ -209,11 +288,28 @@ mod jni {
              endpoint_ref.cancel_token.cancel();
         }
 
+        pub extern "jni" fn getLocalAddr(env: &JNIEnv, handle: i64) -> JniResult<String> {
+            let ptr = PtrSend(handle as *const NativeEndpoint);
+            let endpoint_ref = unsafe { ptr.as_ref() };
+            let addr = match &endpoint_ref.inner {
+                EndpointInner::Client(c) => c.local_addr(),
+                EndpointInner::Server(s) => s.local_addr(),
+            };
+            
+            match addr {
+                Ok(a) => Ok(a.to_string()),
+                Err(e) => {
+                    let _ = env.throw_new("java/lang/RuntimeException", e.to_string());
+                    Ok("".to_string())
+                }
+            }
+        }
+
         pub extern "jni" fn destroy(handle: i64) {
             if handle != 0 {
                 unsafe {
                     let _ = Box::from_raw(handle as *mut NativeEndpoint);
-                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                    ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
         }
@@ -235,7 +331,7 @@ mod jni {
                                 let vm = JAVA_VM.get().expect("JavaVM not initialized");
                                 let env = vm.attach_current_thread().expect("Failed to attach thread");
                                 let h = Box::into_raw(Box::new(NativeSendStream(stream))) as i64;
-                                crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                                ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                                 let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                             }
                             Err(e) => {
@@ -272,7 +368,7 @@ mod jni {
                                     recv: Some(NativeRecvStream(recv)),
                                 };
                                 let h = Box::into_raw(Box::new(pair)) as i64;
-                                crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                                ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                                 let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                             }
                             Err(e) => {
@@ -303,7 +399,7 @@ mod jni {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
                         let h = Box::into_raw(Box::new(NativeRecvStream(stream))) as i64;
-                        crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                        ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                         let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                     }
                     Err(e) => {
@@ -330,7 +426,7 @@ mod jni {
                             recv: Some(NativeRecvStream(recv)),
                         };
                         let h = Box::into_raw(Box::new(pair)) as i64;
-                        crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                        ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                         let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                     }
                     Err(e) => {
@@ -365,7 +461,7 @@ mod jni {
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
                         let d = NativeDatagram(datagram.to_vec().into_boxed_slice());
                         let h = Box::into_raw(Box::new(d)) as i64;
-                        crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                        ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                         let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                     }
                     Err(e) => {
@@ -378,11 +474,31 @@ mod jni {
              });
         }
 
+        pub extern "jni" fn getStats<'env>(env: &JNIEnv<'env>, handle: i64) -> JniResult<JObject<'env>> {
+            let conn = unsafe { &*(handle as *const NativeConnection) };
+            
+            // Access quic_connection directly if possible or via method if exposed
+            let stats = conn.0.quic_connection().stats();
+            let path_stats = stats.path;
+
+            let cls = env.find_class("ovh/devcraft/kwtransport/ConnectionStats")?;
+            let constructor = env.get_method_id(cls, "<init>", "(JJJJ)V")?;
+            
+            let obj = env.new_object_unchecked(cls, constructor, &[
+                JValue::Long(path_stats.rtt.as_millis() as i64),
+                JValue::Long(path_stats.lost_packets as i64),
+                JValue::Long(path_stats.sent_packets as i64),
+                JValue::Long(path_stats.congestion_events as i64)
+            ])?;
+
+            Ok(obj)
+        }
+
         pub extern "jni" fn destroy(handle: i64) {
             if handle != 0 {
                 unsafe {
                     let _ = Box::from_raw(handle as *mut NativeConnection);
-                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                    ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
         }
@@ -396,7 +512,7 @@ mod jni {
             let pair = unsafe { &mut *(handle as *mut NativeStreamPair) };
             match pair.send.take() {
                 Some(s) => {
-                    crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                    ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                     Box::into_raw(Box::new(s)) as i64
                 },
                 None => 0,
@@ -406,7 +522,7 @@ mod jni {
             let pair = unsafe { &mut *(handle as *mut NativeStreamPair) };
             match pair.recv.take() {
                 Some(s) => {
-                    crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                    ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                     Box::into_raw(Box::new(s)) as i64
                 },
                 None => 0,
@@ -416,7 +532,7 @@ mod jni {
             if handle != 0 {
                 unsafe { 
                     let _ = Box::from_raw(handle as *mut NativeStreamPair); 
-                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                    ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
         }
@@ -434,7 +550,7 @@ mod jni {
             if handle != 0 {
                 unsafe { 
                     let _ = Box::from_raw(handle as *mut NativeDatagram); 
-                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                    ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
         }
@@ -466,7 +582,7 @@ mod jni {
                     if handle != 0 {
                         unsafe { 
                             let _ = Box::from_raw(handle as *mut NativeSendStream); 
-                            crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                            ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                         }
                     }
                 }
@@ -528,7 +644,7 @@ mod jni {
                     if handle != 0 {
                         unsafe { 
                             let _ = Box::from_raw(handle as *mut NativeRecvStream); 
-                            crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                            ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                         }
                     }
                 }
@@ -542,7 +658,7 @@ mod jni {
              let _guard = RUNTIME.enter();
              match Identity::self_signed(sans) {
                  Ok(identity) => {
-                     crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                     ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                      Ok(Box::into_raw(Box::new(NativeIdentity(identity))) as i64)
                  },
                  Err(e) => {
@@ -552,136 +668,24 @@ mod jni {
              }
         }
 
+        pub extern "jni" fn getHash(env: &JNIEnv, handle: i64) -> JniResult<String> {
+             let identity = unsafe { &*(handle as *const NativeIdentity) };
+             match identity.0.certificate_chain().as_slice().first() {
+                 Some(cert) => Ok(cert.hash().to_string()),
+                 None => {
+                     let _ = env.throw_new("java/lang/IllegalStateException", "Identity has no certificates");
+                     Ok("".to_string())
+                 }
+             }
+        }
+
         pub extern "jni" fn destroy(handle: i64) {
             if handle != 0 {
                 unsafe {
                     let _ = Box::from_raw(handle as *mut NativeIdentity);
-                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                    ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
         }
     }
-}
-
-use wtransport::endpoint::endpoint_side::{Client, Server};
-use once_cell::sync::OnceCell;
-use tokio_util::sync::CancellationToken;
-use wtransport::error::{ConnectingError, ConnectionError, StreamOpeningError, SendDatagramError};
-
-pub struct NativeEndpoint {
-    pub inner: EndpointInner,
-    pub cancel_token: CancellationToken,
-}
-
-pub enum EndpointInner {
-    Client(wtransport::Endpoint<Client>),
-    Server(wtransport::Endpoint<Server>),
-}
-
-impl NativeEndpoint {
-    pub fn new_client(c: wtransport::Endpoint<Client>) -> Self {
-        Self {
-            inner: EndpointInner::Client(c),
-            cancel_token: CancellationToken::new(),
-        }
-    }
-    pub fn new_server(s: wtransport::Endpoint<Server>) -> Self {
-        Self {
-            inner: EndpointInner::Server(s),
-            cancel_token: CancellationToken::new(),
-        }
-    }
-}
-
-pub struct NativeConnection(pub wtransport::Connection);
-pub struct NativeSendStream(pub wtransport::SendStream);
-pub struct NativeRecvStream(pub wtransport::RecvStream);
-pub struct NativeIdentity(pub wtransport::Identity);
-
-lazy_static::lazy_static! {
-    pub static ref RUNTIME: tokio::runtime::Runtime = tokio::runtime::Runtime::new().unwrap();
-}
-
-pub static JAVA_VM: OnceCell<robusta_jni::jni::JavaVM> = OnceCell::new();
-
-#[derive(Copy, Clone)]
-pub struct PtrSend(pub *const NativeEndpoint);
-unsafe impl Send for PtrSend {}
-unsafe impl Sync for PtrSend {}
-
-pub struct NativeStreamPair {
-    pub send: Option<NativeSendStream>,
-    pub recv: Option<NativeRecvStream>,
-}
-
-pub struct NativeDatagram(pub Box<[u8]>);
-
-#[derive(Copy, Clone)]
-pub struct PtrSendConnection(pub *const NativeConnection);
-unsafe impl Send for PtrSendConnection {}
-unsafe impl Sync for PtrSendConnection {}
-
-#[derive(Copy, Clone)]
-pub struct PtrSendSendStream(pub *mut NativeSendStream);
-unsafe impl Send for PtrSendSendStream {}
-unsafe impl Sync for PtrSendSendStream {}
-
-#[derive(Copy, Clone)]
-pub struct PtrSendRecvStream(pub *mut NativeRecvStream);
-unsafe impl Send for PtrSendRecvStream {}
-unsafe impl Sync for PtrSendRecvStream {}
-
-unsafe impl Send for NativeEndpoint {}
-unsafe impl Sync for NativeEndpoint {}
-
-unsafe impl Send for NativeConnection {}
-unsafe impl Sync for NativeConnection {}
-
-unsafe impl Send for NativeSendStream {}
-unsafe impl Sync for NativeSendStream {}
-
-unsafe impl Send for NativeRecvStream {}
-unsafe impl Sync for NativeRecvStream {}
-
-impl PtrSend {
-    unsafe fn as_ref(&self) -> &NativeEndpoint { &*self.0 }
-}
-impl PtrSendConnection {
-    unsafe fn as_ref(&self) -> &NativeConnection { &*self.0 }
-}
-impl PtrSendSendStream {
-    unsafe fn as_mut(self) -> &'static mut NativeSendStream { &mut *self.0 }
-}
-impl PtrSendRecvStream {
-    unsafe fn as_mut(self) -> &'static mut NativeRecvStream { &mut *self.0 }
-}
-
-fn map_conn_err(error: ConnectionError) -> (String, String) {
-    let (ex_type, msg) = match error {
-        ConnectionError::ConnectionClosed(_) => ("CONNECTION_CLOSED", "Connection closed"),
-        ConnectionError::ApplicationClosed(_) => ("APPLICATION_CLOSED", "Application closed"),
-        ConnectionError::LocallyClosed => ("LOCALLY_CLOSED", "Locally closed"),
-        ConnectionError::LocalH3Error(_) => ("LOCAL_H3_ERROR", "Local H3 error"),
-        ConnectionError::TimedOut => ("TIMED_OUT", "Timed out"),
-        ConnectionError::QuicProto(_) => ("QUIC_PROTO", "QUIC protocol error"),
-        ConnectionError::CidsExhausted => ("CIDS_EHAUSTED", "CIDs exhausted"),
-    };
-    (ex_type.to_string(), msg.to_string())
-}
-
-fn map_stream_err(error: StreamOpeningError) -> (String, String) {
-    let (ex_type, msg) = match error {
-        StreamOpeningError::NotConnected => ("NOT_CONNECTED", "Not connected"),
-        StreamOpeningError::Refused => ("REFUSED", "Opening stream refused"),
-    };
-    (ex_type.to_string(), msg.to_string())
-}
-
-fn map_send_datagram_err(error: SendDatagramError) -> (String, String) {
-    let (ex_type, msg) = match error {
-        SendDatagramError::NotConnected => ("NOT_CONNECTED", "Not connected"),
-        SendDatagramError::UnsupportedByPeer => ("UNSUPPORTED_BY_PEER", "Unsupported by peer"),
-        SendDatagramError::TooLarge => ("TOO_LARGE", "Too large"),
-    };
-    (ex_type.to_string(), msg.to_string())
 }
