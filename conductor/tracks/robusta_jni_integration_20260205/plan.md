@@ -6,7 +6,7 @@ This plan outlines the transition from UniFFI to a high-performance JNI bridge u
 - [x] Task: Remove UniFFI dependencies and generated code
     - [x] Remove UniFFI from `kwtransport-ffi/Cargo.toml`
     - [x] Delete `kwtransport-ffi/src/api.udl` and UniFFI-specific build scripts
-    - [x] Remove UniFFI-related Gradle configurations in `shared/build.gradle.kts`
+    - [x] Remove UniFFI-related Gradle configurations in `kwtransport/build.gradle.kts`
 - [x] Task: Configure `robusta` in the Rust crate
     - [x] Add `robusta` dependency to `kwtransport-ffi/Cargo.toml`
     - [x] Set up the basic module structure for `robusta` bindings in `kwtransport-ffi/src/lib.rs`
@@ -16,11 +16,11 @@ This plan outlines the transition from UniFFI to a high-performance JNI bridge u
 
 ## Phase 2: Core Connection Management
 - [x] Task: Define Kotlin Exception Hierarchy
-    - [x] Create base `WebTransportException` and specific subclasses in `shared/commonMain`
+    - [x] Create base `WebTransportException` and specific subclasses in `kwtransport/commonMain`
 - [x] Task: Implement Connection JNI Bridge (Robusta)
     - [x] Write failing JVM tests for connection opening/closing (Skipped, went straight to impl)
     - [x] Implement `robusta` macros in Rust for `Endpoint` and `Connection` lifecycle
-    - [x] Implement the Kotlin wrapper class in `shared/jvmMain`
+    - [x] Implement the Kotlin wrapper class in `kwtransport/jvmMain`
 - [x] Task: Verify Connection Lifecycle
     - [x] Run JVM integration tests for successful connection and error propagation (e.g., connection refused)
 - [ ] Task: Conductor - User Manual Verification 'Core Connection Management' (Protocol in workflow.md)

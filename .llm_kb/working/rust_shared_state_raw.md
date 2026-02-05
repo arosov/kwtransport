@@ -207,7 +207,7 @@ We hinted that this example wouldn’t compile. Now let’s find out why!
 
 __
 $ cargo run
-   Compiling shared-state v0.1.0 (file:///projects/shared-state)
+   Compiling shared-state v0.1.0 (file:///projects.kwtransport-state)
 error[E0382]: borrow of moved value: `counter`
   --> src/main.rs:21:29
    |
@@ -273,7 +273,7 @@ Once again, we compile and get… different errors! The compiler is teaching us 
 
 __
 $ cargo run
-   Compiling shared-state v0.1.0 (file:///projects/shared-state)
+   Compiling shared-state v0.1.0 (file:///projects.kwtransport-state)
 error[E0277]: `Rc<std::sync::Mutex<i32>>` cannot be sent between threads safely
   --> src/main.rs:11:36
    |

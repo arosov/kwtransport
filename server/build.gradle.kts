@@ -29,11 +29,11 @@ tasks.register<JavaExec>("runTestServer") {
     mainClass.set("io.github.arosov.kwtransport.TestEchoServerKt")
     classpath = sourceSets["main"].runtimeClasspath
     
-    dependsOn(":shared:buildRust")
+    dependsOn(":kwtransport:buildRust")
 }
 
 dependencies {
-    implementation(projects.shared)
+    implementation(projects.kwtransport)
     implementation(project(":libraries:test-support"))
     
     // Depend on the native artifact of the current host

@@ -67,10 +67,10 @@ The `cli-chat` module provides a simple command-line chat application to demonst
 To run JVM tests for the `shared` module:
 
 ```bash
-./gradlew :shared:cleanJvmTest :shared:jvmTest
+./gradlew :kwtransport:cleanJvmTest :kwtransport:jvmTest
 ```
 
-For other modules or specific targets, replace `:shared` and `:jvmTest` as per the project's [Gradle module conventions](AGENTS.md#gradle-module-conventions).
+For other modules or specific targets, replace `:kwtransport` and `:jvmTest` as per the project's [Gradle module conventions](AGENTS.md#gradle-module-conventions).
 
 ## API Overview
 

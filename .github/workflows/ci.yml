@@ -36,10 +36,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build Rust FFI
-        run: ./gradlew :shared:buildRust --no-configuration-cache
+        run: ./gradlew :kwtransport:buildRust --no-configuration-cache
 
       - name: Run JVM Tests
-        run: ./gradlew :shared:cleanJvmTest :shared:jvmTest --no-configuration-cache
+        run: ./gradlew :kwtransport:cleanJvmTest :kwtransport:jvmTest --no-configuration-cache
 
       - name: Run Browser Integration Tests
         run: ./scripts/run_browser_integration_tests.sh

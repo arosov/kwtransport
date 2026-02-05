@@ -33,7 +33,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build Rust FFI
-        run: ./gradlew :shared:buildRust --no-configuration-cache
+        run: ./gradlew :kwtransport:buildRust --no-configuration-cache
 
       - name: Run FFI Stress Test
-        run: ./gradlew :shared:cleanJvmTest :shared:jvmTest -PincludeStressTests --tests "io.github.arosov.kwtransport.FfiStressTest" --no-configuration-cache
+        run: ./gradlew :kwtransport:cleanJvmTest :kwtransport:jvmTest -PincludeStressTests --tests "io.github.arosov.kwtransport.FfiStressTest" --no-configuration-cache

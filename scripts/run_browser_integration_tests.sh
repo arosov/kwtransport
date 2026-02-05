@@ -23,6 +23,6 @@ done
 echo "Server is ready."
 
 echo "Running JS and WASM integration tests..."
-./gradlew :shared:cleanJsTest :shared:jsTest :shared:cleanWasmJsTest :shared:wasmJsTest --no-configuration-cache
+./gradlew :kwtransport:cleanJsTest :kwtransport:jsTest :kwtransport:cleanWasmJsTest :kwtransport:wasmJsTest --no-configuration-cache
 
 echo "Tests completed successfully!"

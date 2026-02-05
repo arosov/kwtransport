@@ -15,7 +15,7 @@ Users should only download the native binary (`.so`, `.dylib`, `.dll`) that matc
 ## 3. Implementation in Gradle
 
 ### A. Defining Publications
-In `shared/build.gradle.kts`, we define extra Maven publications for each native platform.
+In `kwtransport/build.gradle.kts`, we define extra Maven publications for each native platform.
 
 ```kotlin
 // Example for Linux x64

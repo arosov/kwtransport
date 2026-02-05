@@ -16,7 +16,7 @@ The `com.vanniktech.maven.publish` plugin is the community standard for publishi
 vanniktech-publish = { id = "com.vanniktech.maven.publish", version = "0.30.0" }
 ```
 
-### B. Build Configuration (`shared/build.gradle.kts`)
+### B. Build Configuration (`kwtransport/build.gradle.kts`)
 ```kotlin
 plugins {
     alias(libs.plugins.kotlinMultiplatform)

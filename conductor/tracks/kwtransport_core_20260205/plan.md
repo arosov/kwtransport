@@ -19,7 +19,7 @@ This phase focuses on exposing the necessary `wtransport` functionality via Robu
 This phase focuses on creating the Kotlin-side structure that consumes the JNI code.
 
 - [~] Task: Set up Kotlin Shared Module for JNI.
-    - [ ] Ensure Rust compilation is correctly configured in `shared/build.gradle.kts`.
+    - [ ] Ensure Rust compilation is correctly configured in `kwtransport/build.gradle.kts`.
     - [ ] Verify JNI calls work.
 - [ ] Task: Implement `KwTransport` entry point.
     - [ ] Create `KwTransport` object/class.
@@ -37,6 +37,6 @@ This phase connects the Kotlin stream wrappers to the Rust streams.
     - [ ] Implement `write` (suspend) for `KwSendStream`.
     - [ ] Implement `read` (suspend) for `KwRecvStream`.
 - [ ] Task: Integration Test - Bi-directional Stream.
-    - [ ] Create a test in `shared/src/commonTest` that connects to a local test server.
+    - [ ] Create a test in `kwtransport/src/commonTest` that connects to a local test server.
     - [ ] Verify sending and receiving data works.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3' (Protocol in workflow.md)

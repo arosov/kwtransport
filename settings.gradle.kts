@@ -28,11 +28,10 @@ dependencyResolutionManagement {
     }
 }
 
-include(":composeApp")
 
 include(":server")
 
-include(":shared")
+include(":kwtransport")
 
 include(":cli-chat")
 

@@ -264,7 +264,7 @@ tasks.named("jsTest") {
 }
 
 android {
-    namespace = "io.github.arosov.kwtransport.shared"
+    namespace = "io.github.arosov.kwtransport"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

@@ -40,19 +40,19 @@ jobs:
 
       - name: Run Smoke Tests
         run: |
-          ./gradlew :shared:buildRust --no-configuration-cache
-          ./gradlew :shared:cleanJvmTest :shared:jvmTest --no-configuration-cache
+          ./gradlew :kwtransport:buildRust --no-configuration-cache
+          ./gradlew :kwtransport:cleanJvmTest :kwtransport:jvmTest --no-configuration-cache
           ./scripts/run_browser_integration_tests.sh
 
       - name: Build and Publish
         run: |
           # Build and publish host-specific native binary
-          ./gradlew :shared:buildRust --no-configuration-cache
-          PLATFORM=$(./gradlew -q :shared:printPlatform)
+          ./gradlew :kwtransport:buildRust --no-configuration-cache
+          PLATFORM=$(./gradlew -q :kwtransport:printPlatform)
           ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
           
           # Publish core library (includes JS, WASM, Android, JVM Kotlin)
-          ./gradlew :shared:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+          ./gradlew :kwtransport:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
         env:
           VERSION: ${{ github.event.inputs.version }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
@@ -86,14 +86,14 @@ jobs:
       - name: Run Smoke Tests
         shell: bash
         run: |
-          ./gradlew :shared:buildRust --no-configuration-cache
-          ./gradlew :shared:cleanJvmTest :shared:jvmTest --no-configuration-cache
+          ./gradlew :kwtransport:buildRust --no-configuration-cache
+          ./gradlew :kwtransport:cleanJvmTest :kwtransport:jvmTest --no-configuration-cache
 
       - name: Build and Publish
         shell: bash
         run: |
-          ./gradlew :shared:buildRust --no-configuration-cache
-          PLATFORM=$(./gradlew -q :shared:printPlatform)
+          ./gradlew :kwtransport:buildRust --no-configuration-cache
+          PLATFORM=$(./gradlew -q :kwtransport:printPlatform)
           ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
         env:
           VERSION: ${{ github.event.inputs.version }}
@@ -127,16 +127,16 @@ jobs:
 
       - name: Run Smoke Tests
         run: |
-          ./gradlew :shared:buildRust --no-configuration-cache
-          ./gradlew :shared:cleanJvmTest :shared:jvmTest --no-configuration-cache
+          ./gradlew :kwtransport:buildRust --no-configuration-cache
+          ./gradlew :kwtransport:cleanJvmTest :kwtransport:jvmTest --no-configuration-cache
 
       - name: Build and Publish
         run: |
           # Build and publish macOS binaries
-          ./gradlew :shared:buildRust --no-configuration-cache
+          ./gradlew :kwtransport:buildRust --no-configuration-cache
           
           # Detect platform and publish corresponding module
-          PLATFORM=$(./gradlew -q :shared:printPlatform)
+          PLATFORM=$(./gradlew -q :kwtransport:printPlatform)
           ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
         env:
           VERSION: ${{ github.event.inputs.version }}

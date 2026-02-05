@@ -25,8 +25,8 @@ for test in tests:
     
     cmd = [
         "./gradlew", 
-        ":shared:cleanJvmTest", 
-        ":shared:jvmTest", 
+        ":kwtransport:cleanJvmTest", 
+        ":kwtransport:jvmTest", 
         "--tests", test
     ]
     
