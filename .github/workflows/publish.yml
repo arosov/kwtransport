@@ -45,6 +45,7 @@ jobs:
         uses: browser-actions/setup-chrome@v2
         with:
           chrome-version: stable
+          install-dependencies: true
 
       - name: Install NDK
         run: sdkmanager "ndk;25.2.9519653"
