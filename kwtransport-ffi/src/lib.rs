@@ -9,7 +9,7 @@ pub mod utils;
 mod jni {
     use robusta_jni::jni::errors::Result as JniResult;
     use robusta_jni::jni::JNIEnv;
-    use robusta_jni::jni::objects::{JObject, JValue};
+    use robusta_jni::jni::objects::{JObject, JValue, JString};
     use std::net::SocketAddr;
     use std::time::Duration;
     use std::sync::atomic::Ordering;
@@ -35,6 +35,18 @@ mod jni {
     use wtransport::tls::build_native_cert_store;
     use wtransport::tls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
     use wtransport::tls::rustls::pki_types::pem::PemObject;
+    use wtransport::config::DnsResolver;
+    use wtransport::config::DnsLookupFuture;
+    use wtransport::config::TokioDnsResolver;
+    use tokio::sync::oneshot;
+    use lazy_static::lazy_static;
+    use std::collections::HashMap;
+    use std::pin::Pin;
+
+lazy_static! {
+    static ref ASYNC_DNS_REGISTRY: Mutex<HashMap<i64, oneshot::Sender<std::io::Result<Option<SocketAddr>>>>> =
+        Mutex::new(HashMap::new());
+}
 
     #[package(ovh.devcraft.kwtransport)]
     pub struct KwTransport;
@@ -57,6 +69,77 @@ mod jni {
         pub extern "java" fn throwStreamOpeningException(env: &JNIEnv, message: String, type_name: String) -> JniResult<()> {}
         pub extern "java" fn throwSendDatagramException(env: &JNIEnv, message: String, type_name: String) -> JniResult<()> {}
         pub extern "java" fn onNotify(env: &JNIEnv, id: i64, result: i64, error_type: String, error_message: String, error_code: i64, error_context: String) -> JniResult<()> {}
+
+        // Rust implementation of Kotlin's external resolveDnsResponse
+        pub extern "jni" fn resolveDnsResponse<'env>(_env: &JNIEnv<'env>, request_id: i64, ip_address: JString<'env>, error_message: JString<'env>) {
+            let mut registry = ASYNC_DNS_REGISTRY.blocking_lock();
+            if let Some(sender) = registry.remove(&request_id) {
+                let ip_addr_str: String = if !ip_address.is_null() {
+                    _env.get_string(ip_address).unwrap().into()
+                } else {
+                    "".to_string()
+                };
+                let error_msg_str: String = if !error_message.is_null() {
+                    _env.get_string(error_message).unwrap().into()
+                } else {
+                    "".to_string()
+                };
+
+                if !error_msg_str.is_empty() {
+                    let _ = sender.send(Err(std::io::Error::new(std::io::ErrorKind::Other, error_msg_str)));
+                } else if !ip_addr_str.is_empty() {
+                    let socket_addr: Option<SocketAddr> = ip_addr_str.parse().ok();
+                    let _ = sender.send(Ok(socket_addr));
+                } else {
+                    let _ = sender.send(Ok(None));
+                }
+            }
+        }
+
+        // Rust declaration of Kotlin's onResolveRequest (which Rust calls)
+        pub extern "java" fn onResolveRequest(
+            env: &JNIEnv,
+            resolverId: i64,
+            host: JString,
+            requestId: i64,
+        ) -> JniResult<()> {}
+    }
+
+    #[package(ovh.devcraft.kwtransport)]
+    #[derive(Debug, Clone)]
+    struct NativeDnsResolver {
+        resolver_id: i64,
+    }
+
+    impl DnsResolver for NativeDnsResolver {
+        fn resolve(&self, host: &str) -> Pin<Box<dyn DnsLookupFuture>> {
+            let resolver_id = self.resolver_id;
+            let host_string = host.to_string();
+
+            Box::pin(async move {
+                let (tx, rx) = oneshot::channel();
+                let request_id = { // generate a unique request ID
+                    let mut registry = ASYNC_DNS_REGISTRY.lock().await;
+                    let new_id = ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed); // Reuse counter for unique IDs
+                    registry.insert(new_id, tx);
+                    new_id
+                };
+
+                let vm = JAVA_VM.get().expect("JavaVM not initialized");
+                
+                {
+                    let env = vm.attach_current_thread().expect("Failed to attach thread");
+                    let host_jstring = env.new_string(host_string).unwrap();
+                    // Call Kotlin's JniHelper.onResolveRequest
+                    let _ = JniHelper::onResolveRequest(&env, resolver_id, host_jstring, request_id);
+                } // AttachGuard dropped here
+
+                // Await the response from Kotlin. No env held across await.
+                let result = rx.await.expect("Sender was dropped before completing Dns resolution");
+                ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed); // Decrement counter for unique IDs
+                result
+            })
+        }
     }
 
     #[package(ovh.devcraft.kwtransport)]
@@ -74,7 +157,8 @@ mod jni {
             ipv6_dual_stack_config: i32,
             quic_config: Vec<i64>,
             client_cert_handle: i64,
-            root_cert_handles: Vec<i64>
+            root_cert_handles: Vec<i64>,
+            dns_resolver_id: i64
         ) -> JniResult<i64> {
             let _ = JAVA_VM.set(env.get_java_vm().unwrap());
             let _guard = RUNTIME.enter();
@@ -187,6 +271,14 @@ mod jni {
             if keep_alive_interval_millis > 0 {
                 builder = builder.keep_alive_interval(Some(Duration::from_millis(keep_alive_interval_millis as u64)));
             }
+            
+            let builder = if dns_resolver_id != 0 {
+                builder.dns_resolver(NativeDnsResolver {
+                    resolver_id: dns_resolver_id,
+                })
+            } else {
+                builder.dns_resolver(TokioDnsResolver::default())
+            };
             
             let mut client_config = builder.build();
             

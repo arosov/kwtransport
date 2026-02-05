@@ -23,6 +23,16 @@ internal object AsyncRegistry {
         return id
     }
 
+    fun <T : Any> registerObject(obj: T): Long {
+        val id = idGenerator.getAndIncrement()
+        pendingOps[id] = obj
+        return id
+    }
+
+    fun getResolverObject(id: Long): CustomDnsResolver? {
+        return pendingOps[id] as? CustomDnsResolver
+    }
+
     fun remove(id: Long) {
         pendingOps.remove(id)
     }

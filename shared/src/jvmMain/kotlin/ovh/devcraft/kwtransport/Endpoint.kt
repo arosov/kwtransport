@@ -23,7 +23,8 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
             ipv6DualStackConfig: Int,
             quicConfig: List<Long>,
             clientCertHandle: Long,
-            rootCertHandles: List<Long>
+            rootCertHandles: List<Long>,
+            dnsResolverId: Long
         ): Long
 
         @JvmStatic
@@ -66,10 +67,12 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
             ipv6DualStackConfig: Int = IPV6_DUAL_STACK_DEFAULT,
             quicConfig: QuicConfig? = null,
             clientCertificate: Certificate? = null,
-            rootCerts: List<Certificate>? = null
+            rootCerts: List<Certificate>? = null,
+            customDnsResolver: CustomDnsResolver? = null
         ): Endpoint {
             val certHandle = clientCertificate?.handle?.getAndSet(0L) ?: 0L
             val rootHandles = rootCerts?.map { it.handle.getAndSet(0L) } ?: emptyList()
+            val dnsResolverId = customDnsResolver?.let { AsyncRegistry.registerObject(it) } ?: 0L
             
             val handle = createClient(
                 bindAddr, 
@@ -80,7 +83,8 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
                 ipv6DualStackConfig,
                 quicConfig?.toLongList() ?: emptyList(),
                 certHandle,
-                rootHandles
+                rootHandles,
+                dnsResolverId
             )
             return Endpoint(handle)
         }
