@@ -128,6 +128,12 @@ fun getCurrentPlatform(): String {
     }
 }
 
+tasks.register("printPlatform") {
+    doLast {
+        println(getCurrentPlatform())
+    }
+}
+
 val cargoBuild = tasks.register<Exec>("cargoBuild") {
     workingDir = file("../kwtransport-ffi")
     val isRelease = project.hasProperty("rust.release")

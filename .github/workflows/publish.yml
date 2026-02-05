@@ -1,0 +1,116 @@
+name: Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.1.0 or 0.1.0-SNAPSHOT)'
+        required: true
+
+jobs:
+  publish-linux-and-common:
+    name: Publish Linux & Common (JS/WASM/Android)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build and Publish
+        run: |
+          # Build and publish host-specific native binary
+          ./gradlew :shared:buildRust --no-configuration-cache
+          PLATFORM=$(./gradlew -q :shared:printPlatform)
+          ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+          
+          # Publish core library (includes JS, WASM, Android, JVM Kotlin)
+          ./gradlew :shared:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
+
+  publish-windows:
+    name: Publish Windows Binary
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build and Publish
+        shell: bash
+        run: |
+          ./gradlew :shared:buildRust --no-configuration-cache
+          PLATFORM=$(./gradlew -q :shared:printPlatform)
+          ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
+
+  publish-macos:
+    name: Publish macOS Binaries
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build and Publish
+        run: |
+          # Build and publish macOS binaries
+          ./gradlew :shared:buildRust --no-configuration-cache
+          
+          # Detect platform and publish corresponding module
+          PLATFORM=$(./gradlew -q :shared:printPlatform)
+          ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}

@@ -42,4 +42,10 @@ include(":native:linux-arm64")
 
 include(":native:windows-x64")
 
+include(":native:macos-x64")
+
+include(":native:macos-arm64")
+
+
+
 
