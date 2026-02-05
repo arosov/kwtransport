@@ -18,11 +18,15 @@ on:
         description: 'Publish macOS'
         type: boolean
         default: true
+      publish-android-only:
+        description: 'Publish ONLY Android (skips tests and other platforms)'
+        type: boolean
+        default: false
 
 jobs:
   publish-linux-and-common:
     name: Publish Linux & Common (JS/WASM/Android)
-    if: ${{ github.event.inputs.publish-linux == 'true' }}
+    if: ${{ github.event.inputs.publish-linux == 'true' || github.event.inputs.publish-android-only == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +67,7 @@ jobs:
           cp local.properties kwtransport/local.properties
 
       - name: Run Smoke Tests
+        if: ${{ github.event.inputs.publish-android-only != 'true' }}
         run: |
           export CHROME_BIN=$(which google-chrome)
           ./gradlew :kwtransport:buildRust --no-configuration-cache
@@ -71,13 +76,18 @@ jobs:
 
       - name: Build and Publish
         run: |
-          # Build and publish host-specific native binary
-          ./gradlew :kwtransport:buildRust --no-configuration-cache
-          PLATFORM=$(./gradlew -q :kwtransport:printPlatform)
-          ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
-          
-          # Publish core library (includes JS, WASM, Android, JVM Kotlin)
-          ./gradlew :kwtransport:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+          if [ "${{ github.event.inputs.publish-android-only }}" == "true" ]; then
+            echo "Publishing Android Only..."
+            ./gradlew :kwtransport:publishAndroidReleasePublicationToMavenCentralRepository --no-configuration-cache
+          else
+            # Build and publish host-specific native binary
+            ./gradlew :kwtransport:buildRust --no-configuration-cache
+            PLATFORM=$(./gradlew -q :kwtransport:printPlatform)
+            ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+            
+            # Publish core library (includes JS, WASM, Android, JVM Kotlin)
+            ./gradlew :kwtransport:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+          fi
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-java.outputs.path }}/../../android/sdk/ndk-bundle # Typical path, but setup-android is better
           VERSION: ${{ github.event.inputs.version }}
