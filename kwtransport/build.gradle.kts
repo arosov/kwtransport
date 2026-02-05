@@ -57,9 +57,9 @@ mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
 
-    // Configure Android variants to publish
+    // Configure Android variants to publish (Debug only to skip release signing requirements)
     configure(com.vanniktech.maven.publish.AndroidMultiVariantLibrary(
-        variants = listOf("release", "debug"),
+        variants = listOf("debug"),
         sourcesJar = true,
         publishJavadocJar = true
     ))
