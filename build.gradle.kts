@@ -9,4 +9,5 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.ktor) apply false
     alias(libs.plugins.vanniktech.publish) apply false
+    alias(libs.plugins.cargo.ndk.android) apply false
 }

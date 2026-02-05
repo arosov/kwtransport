@@ -7,6 +7,14 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.vanniktech.publish)
+    alias(libs.plugins.cargo.ndk.android)
+}
+
+// Android Rust build configuration
+cargoNdk {
+    projectDir = file("../kwtransport-ffi")
+    targets = listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+    moduleName = "kwtransport_ffi"
 }
 
 // Load local.properties into project properties so the publishing plugin can see them
