@@ -41,12 +41,6 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v2
-        with:
-          chrome-version: stable
-          install-dependencies: ${{ env.ACT != 'true' }}
-
       - name: Install NDK
         run: sdkmanager "ndk;25.2.9519653"
 
