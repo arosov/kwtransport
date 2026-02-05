@@ -1,0 +1,39 @@
+name: Stress Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Number of stress test iterations (if configurable)'
+        required: false
+        default: '50'
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Rust FFI
+        run: ./gradlew :shared:buildRust --no-configuration-cache
+
+      - name: Run FFI Stress Test
+        run: ./gradlew :shared:cleanJvmTest :shared:jvmTest -PincludeStressTests --tests "ovh.devcraft.kwtransport.FfiStressTest" --no-configuration-cache
