@@ -19,3 +19,15 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 *.log
+
+# Binary and generated files
+*.so
+*.dll
+*.dylib
+*.wasm
+*.aar
+*.klib
+*.bin
+*.exe
+*.o
+*.a
