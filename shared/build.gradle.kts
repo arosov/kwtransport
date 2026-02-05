@@ -12,9 +12,8 @@ plugins {
 
 // Android Rust build configuration
 cargoNdk {
-    projectDir = file("../kwtransport-ffi")
-    targets = listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
-    moduleName = "kwtransport_ffi"
+    module = "kwtransport-ffi"
+    targets = arrayListOf("arm64", "arm", "x86", "x86_64")
 }
 
 // Load local.properties into project properties so the publishing plugin can see them
