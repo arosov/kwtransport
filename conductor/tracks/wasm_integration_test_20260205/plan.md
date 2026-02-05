@@ -4,8 +4,8 @@
 Update the common and browser APIs to support certificate hashes.
 
 - [x] Task: Update `expect fun createClientEndpoint` in `commonMain` to include `certificateHashes: List<String> = emptyList()`. [2b29762]
-- [ ] Task: Implement `certificateHashes` support in `jsMain` and `wasmJsMain` using the browser's `WebTransportOptions`.
-- [ ] Task: Update `Endpoint.connect` in `jsMain` and `wasmJsMain` to pass the options to the `JsWebTransport` constructor.
+- [x] Task: Implement `certificateHashes` support in `jsMain` and `wasmJsMain` using the browser's `WebTransportOptions`. [2a5a12e]
+- [x] Task: Update `Endpoint.connect` in `jsMain` and `wasmJsMain` to pass the options to the `JsWebTransport` constructor. [2a5a12e]
 - [ ] Task: Conductor - User Manual Verification 'API Alignment'
 
 ## Phase 2: JVM Test Server and Fixed Certificate
