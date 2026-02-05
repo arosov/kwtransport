@@ -1,0 +1,8 @@
+{
+  "track_id": "robusta_jni_integration_20260205",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-05T10:00:00Z",
+  "updated_at": "2026-02-05T10:00:00Z",
+  "description": "Transition from UniFFI to robusta for high-performance JNI integration on JVM/Android."
+}

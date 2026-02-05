@@ -19,7 +19,7 @@ This phase focuses on exposing the necessary `wtransport` functionality via UniF
 ## Phase 2: Kotlin Wrapper Structure
 This phase focuses on creating the Kotlin-side structure that consumes the generated FFI code.
 
-- [ ] Task: Set up Kotlin Shared Module for FFI.
+- [~] Task: Set up Kotlin Shared Module for FFI.
     - [ ] Ensure `uniffi` Gradle plugin is correctly configured in `shared/build.gradle.kts`.
     - [ ] Verify FFI bindings generation.
 - [ ] Task: Implement `KwTransport` entry point.

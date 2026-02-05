@@ -102,7 +102,7 @@ with `./gradlew :features:logging:build`.
 # Project specific informations
 
 This project specifically is named kwtransport. It aims to provide a high
-performance wrapper to Rust's wtransport crate with UniFFi.
+performance wrapper to Rust's wtransport crate with Robusta.
 
 The jvm target is a priority in part due to testing being faster.
 

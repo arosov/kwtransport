@@ -8,12 +8,10 @@ crate-type = ["cdylib", "staticlib"]
 name = "kwtransport_ffi"
 
 [dependencies]
-uniffi = { version = "0.31", features = ["tokio", "cli"] }
-uniffi_bindgen = "0.31"
-uniffi_bindgen_kotlin_multiplatform = "0.1.0"
+robusta_jni = "0.2"
+jni = "0.21"
 wtransport = { path = "../wtransport/wtransport", features = ["dangerous-configuration"] }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1.0"
 
 [build-dependencies]
-uniffi = { version = "0.31", features = ["build"] }
