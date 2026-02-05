@@ -34,6 +34,9 @@ project.version = finalVersion
 project.extensions.extraProperties.set("VERSION_NAME", finalVersion)
 
 mavenPublishing {
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
+
     pom {
         name.set("kwtransport")
         description.set("High-Performance WebTransport for Kotlin Multiplatform")
@@ -56,9 +59,6 @@ mavenPublishing {
             url.set("https://github.com/arosov/kwtransport")
         }
     }
-
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications()
 }
 
 kotlin {
@@ -99,12 +99,32 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
+        
+        jvmTest.dependencies {
+            // For testing, we depend on the native artifact of the current host
+            val platform = getCurrentPlatform()
+            if (platform != "unknown") {
+                implementation(project(":native:$platform"))
+            }
+        }
+
         val jvmAndroidMain by creating {
             dependsOn(commonMain.get())
-            resources.srcDir(layout.buildDirectory.dir("rust-lib"))
         }
         jvmMain.get().dependsOn(jvmAndroidMain)
         androidMain.get().dependsOn(jvmAndroidMain)
+    }
+}
+
+// Function to detect current platform for Rust build
+fun getCurrentPlatform(): String {
+    val os = System.getProperty("os.name").lowercase()
+    val arch = System.getProperty("os.arch").lowercase()
+    return when {
+        os.contains("linux") -> if (arch.contains("aarch64") || arch.contains("arm64")) "linux-arm64" else "linux-x64"
+        os.contains("mac") -> if (arch.contains("aarch64") || arch.contains("arm64")) "macos-arm64" else "macos-x64"
+        os.contains("win") -> "windows-x64"
+        else -> "unknown"
     }
 }
 
@@ -119,8 +139,9 @@ val cargoBuild = tasks.register<Exec>("cargoBuild") {
 val buildRustTask = tasks.register("buildRust") {
     dependsOn(cargoBuild)
     val isRelease = project.hasProperty("rust.release")
+    val platform = getCurrentPlatform()
     val cargoDir = layout.projectDirectory.dir("../kwtransport-ffi").asFile
-    val targetDir = layout.buildDirectory.dir("rust-lib").get().asFile
+    val targetDir = file("../native/$platform/src/main/resources/native/$platform")
 
     doLast {
         val osName = System.getProperty("os.name").lowercase()

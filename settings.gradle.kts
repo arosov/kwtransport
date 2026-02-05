@@ -29,6 +29,13 @@ dependencyResolutionManagement {
 }
 
 include(":composeApp")
+
 include(":server")
+
 include(":shared")
+
 include(":cli-chat")
+
+include(":native:linux-x64")
+
+include(":native:linux-arm64")
