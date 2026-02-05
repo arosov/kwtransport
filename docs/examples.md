@@ -186,3 +186,115 @@ println("Client sending a datagram.")
 connection.sendDatagram("This is an unreliable datagram!".toByteArray())
 // There is no guarantee the server will receive this.
 ```
+
+## 6. Advanced Stream Management (Multiplexing)
+
+WebTransport connections support **multiplexing**, allowing multiple independent bidirectional and unidirectional streams to operate concurrently over a single underlying connection. This is highly efficient for applications requiring several parallel data channels.
+
+### Concurrent Bidirectional Streams
+
+This example demonstrates a client opening two bidirectional streams simultaneously and the server handling them concurrently.
+
+**Server Code:**
+```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
+import ovh.devcraft.kwtransport.Connection
+import ovh.devcraft.kwtransport.StreamPair
+
+// Inside the server's incomingSessions().collect block, when a connection is established:
+launch {
+    println("Server: Handling two concurrent bidirectional streams.")
+
+    // Accept the first bidirectional stream
+    val stream1 = connection.acceptBi()
+    val job1 = launch {
+        try {
+            stream1.recv.chunks().collect { chunk ->
+                val msg = chunk.toString(Charsets.UTF_8)
+                println("Server Stream 1 received: '$msg'")
+                stream1.send.write("Echo 1: $msg")
+            }
+        } catch (e: Exception) {
+            println("Server Stream 1 error: ${e.message}")
+        } finally {
+            stream1.send.close()
+            stream1.recv.close()
+        }
+    }
+
+    // Accept the second bidirectional stream
+    val stream2 = connection.acceptBi()
+    val job2 = launch {
+        try {
+            stream2.recv.chunks().collect { chunk ->
+                val msg = chunk.toString(Charsets.UTF_8)
+                println("Server Stream 2 received: '$msg'")
+                stream2.send.write("Echo 2: $msg")
+            }
+        } catch (e: Exception) {
+            println("Server Stream 2 error: ${e.message}")
+        } finally {
+            stream2.send.close()
+            stream2.recv.close()
+        }
+    }
+    joinAll(job1, job2)
+    println("Server: Finished handling concurrent bidirectional streams.")
+}
+```
+
+**Client Code:**
+```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
+import ovh.devcraft.kwtransport.Connection
+
+// Inside the client's successful connection block:
+launch {
+    println("Client: Opening two concurrent bidirectional streams.")
+
+    // Open first bidirectional stream
+    val stream1 = connection.openBi()
+    val job1 = launch {
+        try {
+            stream1.send.write("Message for Stream 1 - Part A")
+            val resp1 = stream1.recv.chunks().first().toString(Charsets.UTF_8)
+            println("Client Stream 1 received: '$resp1'")
+
+            delay(100) // Simulate some work
+
+            stream1.send.write("Message for Stream 1 - Part B")
+            val resp1b = stream1.recv.chunks().first().toString(Charsets.UTF_8)
+            println("Client Stream 1 received: '$resp1b'")
+        } catch (e: Exception) {
+            println("Client Stream 1 error: ${e.message}")
+        } finally {
+            stream1.send.close()
+            stream1.recv.close()
+        }
+    }
+
+    // Open second bidirectional stream
+    val stream2 = connection.openBi()
+    val job2 = launch {
+        try {
+            stream2.send.write("Message for Stream 2 - Hello")
+            val resp2 = stream2.recv.chunks().first().toString(Charsets.UTF_8)
+            println("Client Stream 2 received: '$resp2'")
+
+            delay(200) // Simulate some work
+
+            stream2.send.write("Message for Stream 2 - World")
+            val resp2b = stream2.recv.chunks().first().toString(Charsets.UTF_8)
+            println("Client Stream 2 received: '$resp2b'")
+        } catch (e: Exception) {
+            println("Client Stream 2 error: ${e.message}")
+        } finally {
+            stream2.send.close()
+            stream2.recv.close()
+        }
+    }
+    joinAll(job1, job2)
+    println("Client: Finished opening concurrent bidirectional streams.")
+}
