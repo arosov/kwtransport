@@ -13,6 +13,7 @@ pub struct Connection {
 }
 
 pub struct SendStream {
+    // Uses tokio::sync::Mutex for thread-safe interior mutability across async calls
     inner: Mutex<wtransport::SendStream>,
 }
 
