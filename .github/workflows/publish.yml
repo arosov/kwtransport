@@ -38,6 +38,11 @@ jobs:
         with:
           node-version: '25'
 
+      - name: Create local.properties
+        run: |
+          touch local.properties
+          touch kwtransport/local.properties
+
       - name: Run Smoke Tests
         run: |
           ./gradlew :kwtransport:buildRust --no-configuration-cache
