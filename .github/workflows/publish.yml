@@ -38,10 +38,16 @@ jobs:
         with:
           node-version: '25'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: sdkmanager "ndk;25.2.9519653"
+
       - name: Create local.properties
         run: |
-          touch local.properties
-          touch kwtransport/local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/25.2.9519653" > local.properties
+          cp local.properties kwtransport/local.properties
 
       - name: Run Smoke Tests
         run: |
@@ -59,6 +65,7 @@ jobs:
           # Publish core library (includes JS, WASM, Android, JVM Kotlin)
           ./gradlew :kwtransport:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
         env:
+          ANDROID_NDK_HOME: ${{ steps.setup-java.outputs.path }}/../../android/sdk/ndk-bundle # Typical path, but setup-android is better
           VERSION: ${{ github.event.inputs.version }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

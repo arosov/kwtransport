@@ -22,6 +22,12 @@ until grep -q "SERVER_READY" test_server.log; do
 done
 echo "Server is ready."
 
+# Check if Chrome is available
+if ! command -v google-chrome >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1 && [ -z "$CHROME_BIN" ]; then
+    echo "WARNING: No Chrome or Chromium binary found. Skipping browser integration tests."
+    exit 0
+fi
+
 echo "Running JS and WASM integration tests..."
 ./gradlew :kwtransport:cleanJsTest :kwtransport:jsTest :kwtransport:cleanWasmJsTest :kwtransport:wasmJsTest --no-configuration-cache
 
