@@ -1,6 +1,9 @@
 package ovh.devcraft.kwtransport
 
-class RecvStream internal constructor(private var handle: Long) : AutoCloseable {
+import java.util.concurrent.atomic.AtomicLong
+
+class RecvStream internal constructor(handle: Long) : AutoCloseable {
+    private val handle = AtomicLong(handle)
     companion object {
         init {
             KwTransport
@@ -14,17 +17,18 @@ class RecvStream internal constructor(private var handle: Long) : AutoCloseable 
     }
 
     suspend fun read(buffer: ByteArray): Int {
-        if (handle == 0L) throw IllegalStateException("Stream is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Stream is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
-        read(handle, buffer, id)
+        read(h, buffer, id)
         val result = deferred.await()
         return result.toInt()
     }
 
     override fun close() {
-        if (handle != 0L) {
-            destroy(handle)
-            handle = 0L
+        val h = handle.getAndSet(0L)
+        if (h != 0L) {
+            destroy(h)
         }
     }
 }

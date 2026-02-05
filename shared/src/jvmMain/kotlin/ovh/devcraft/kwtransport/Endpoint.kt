@@ -4,8 +4,10 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
+import java.util.concurrent.atomic.AtomicLong
 
-class Endpoint internal constructor(private var handle: Long) : AutoCloseable {
+class Endpoint internal constructor(handle: Long) : AutoCloseable {
+    private val handle = AtomicLong(handle)
     companion object {
         init {
             KwTransport
@@ -43,40 +45,46 @@ class Endpoint internal constructor(private var handle: Long) : AutoCloseable {
         }
 
         fun createServerEndpoint(bindAddr: String, certificate: Certificate): Endpoint {
-            val handle = createServer(bindAddr, certificate.handle)
-            certificate.handle = 0L 
+            val certHandle = certificate.handle.getAndSet(0L)
+            if (certHandle == 0L) throw IllegalStateException("Certificate is already used or closed")
+            val handle = createServer(bindAddr, certHandle)
             return Endpoint(handle)
         }
     }
 
     suspend fun connect(url: String): Connection {
-        if (handle == 0L) throw IllegalStateException("Endpoint is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Endpoint is closed")
         
         val (id, deferred) = AsyncRegistry.createDeferred()
-        connect(handle, id, url)
+        connect(h, id, url)
         
         val connHandle = deferred.await()
         return Connection(connHandle)
     }
 
     fun incomingSessions(): Flow<Connection> = callbackFlow<Long> {
-        if (handle == 0L) throw IllegalStateException("Endpoint is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Endpoint is closed")
         
         val id = AsyncRegistry.registerChannel(channel)
-        listenSessions(handle, id)
+        listenSessions(h, id)
         
         awaitClose {
-            stopListenSessions(handle)
+            val currentH = handle.get()
+            if (currentH != 0L) {
+                stopListenSessions(currentH)
+            }
             AsyncRegistry.remove(id)
         }
     }.map { handle -> Connection(handle) }
 
     override fun close() {
-        if (handle != 0L) {
-            destroy(handle)
-            handle = 0L
+        val h = handle.getAndSet(0L)
+        if (h != 0L) {
+            destroy(h)
         }
     }
     
-    fun isClosed(): Boolean = handle == 0L
+    fun isClosed(): Boolean = handle.get() == 0L
 }

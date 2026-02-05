@@ -1,6 +1,9 @@
 package ovh.devcraft.kwtransport
 
-class SendStream internal constructor(private var handle: Long) : AutoCloseable {
+import java.util.concurrent.atomic.AtomicLong
+
+class SendStream internal constructor(handle: Long) : AutoCloseable {
+    private val handle = AtomicLong(handle)
     companion object {
         init {
             KwTransport
@@ -14,16 +17,17 @@ class SendStream internal constructor(private var handle: Long) : AutoCloseable 
     }
 
     suspend fun write(data: ByteArray) {
-        if (handle == 0L) throw IllegalStateException("Stream is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Stream is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
-        write(handle, data, id)
+        write(h, data, id)
         deferred.await()
     }
 
     override fun close() {
-        if (handle != 0L) {
-            destroy(handle)
-            handle = 0L
+        val h = handle.getAndSet(0L)
+        if (h != 0L) {
+            destroy(h)
         }
     }
 }

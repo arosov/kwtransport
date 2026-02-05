@@ -1,6 +1,10 @@
 package ovh.devcraft.kwtransport
 
-class Certificate internal constructor(internal var handle: Long) : AutoCloseable {
+import java.util.concurrent.atomic.AtomicLong
+
+class Certificate internal constructor(handle: Long) : AutoCloseable {
+    internal val handle = AtomicLong(handle)
+
     companion object {
         init {
             KwTransport
@@ -20,9 +24,9 @@ class Certificate internal constructor(internal var handle: Long) : AutoCloseabl
     }
 
     override fun close() {
-        if (handle != 0L) {
-            destroy(handle)
-            handle = 0L
+        val h = handle.getAndSet(0L)
+        if (h != 0L) {
+            destroy(h)
         }
     }
 }

@@ -30,5 +30,8 @@ class KwTransport {
 
         @JvmStatic
         external fun hello(): String
+
+        @JvmStatic
+        external fun getDiagnosticCount(): Long
     }
 }

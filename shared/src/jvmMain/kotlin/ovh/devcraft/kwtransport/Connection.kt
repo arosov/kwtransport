@@ -1,6 +1,9 @@
 package ovh.devcraft.kwtransport
 
-class Connection internal constructor(private var handle: Long) : AutoCloseable {
+import java.util.concurrent.atomic.AtomicLong
+
+class Connection internal constructor(handle: Long) : AutoCloseable {
+    private val handle = AtomicLong(handle)
     companion object {
         init {
             KwTransport
@@ -29,17 +32,19 @@ class Connection internal constructor(private var handle: Long) : AutoCloseable 
     }
 
     suspend fun openUni(): SendStream {
-        if (handle == 0L) throw IllegalStateException("Connection is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Connection is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
-        openUni(handle, id)
+        openUni(h, id)
         val streamHandle = deferred.await()
         return SendStream(streamHandle)
     }
 
     suspend fun openBi(): StreamPair {
-        if (handle == 0L) throw IllegalStateException("Connection is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Connection is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
-        openBi(handle, id)
+        openBi(h, id)
         val pairHandle = deferred.await()
         val send = SendStream(StreamPairHelper.getSend(pairHandle))
         val recv = RecvStream(StreamPairHelper.getRecv(pairHandle))
@@ -48,17 +53,19 @@ class Connection internal constructor(private var handle: Long) : AutoCloseable 
     }
 
     suspend fun acceptUni(): RecvStream {
-        if (handle == 0L) throw IllegalStateException("Connection is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Connection is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
-        acceptUni(handle, id)
+        acceptUni(h, id)
         val streamHandle = deferred.await()
         return RecvStream(streamHandle)
     }
 
     suspend fun acceptBi(): StreamPair {
-        if (handle == 0L) throw IllegalStateException("Connection is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Connection is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
-        acceptBi(handle, id)
+        acceptBi(h, id)
         val pairHandle = deferred.await()
         val send = SendStream(StreamPairHelper.getSend(pairHandle))
         val recv = RecvStream(StreamPairHelper.getRecv(pairHandle))
@@ -67,14 +74,16 @@ class Connection internal constructor(private var handle: Long) : AutoCloseable 
     }
 
     fun sendDatagram(data: ByteArray) {
-        if (handle == 0L) throw IllegalStateException("Connection is closed")
-        sendDatagram(handle, data)
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Connection is closed")
+        sendDatagram(h, data)
     }
 
     suspend fun receiveDatagram(): ByteArray {
-        if (handle == 0L) throw IllegalStateException("Connection is closed")
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Connection is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
-        receiveDatagram(handle, id)
+        receiveDatagram(h, id)
         val datagramHandle = deferred.await()
         val data = DatagramHelper.getData(datagramHandle)
         DatagramHelper.destroy(datagramHandle)
@@ -82,11 +91,11 @@ class Connection internal constructor(private var handle: Long) : AutoCloseable 
     }
 
     override fun close() {
-        if (handle != 0L) {
-            destroy(handle)
-            handle = 0L
+        val h = handle.getAndSet(0L)
+        if (h != 0L) {
+            destroy(h)
         }
     }
 
-    fun isClosed(): Boolean = handle == 0L
+    fun isClosed(): Boolean = handle.get() == 0L
 }

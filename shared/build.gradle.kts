@@ -39,33 +39,21 @@ kotlin {
     }
 }
 
-val cargoDir = file("../kwtransport-ffi")
-
-val cleanRustTask = tasks.register("cleanRust") {
-    doLast {
-        exec {
-            workingDir = cargoDir
-            commandLine("cargo", "clean")
-        }
-    }
-}
-
-tasks.named("clean") {
-    dependsOn(cleanRustTask)
+val cargoBuild = tasks.register<Exec>("cargoBuild") {
+    workingDir = file("../kwtransport-ffi")
+    val isRelease = project.hasProperty("rust.release")
+    val cmd = mutableListOf("cargo", "build")
+    if (isRelease) cmd.add("--release")
+    commandLine(cmd)
 }
 
 val buildRustTask = tasks.register("buildRust") {
-    val release = project.hasProperty("rust.release")
-    
+    dependsOn(cargoBuild)
+    val isRelease = project.hasProperty("rust.release")
+    val cargoDir = layout.projectDirectory.dir("../kwtransport-ffi").asFile
+    val targetDir = layout.buildDirectory.dir("rust-lib").get().asFile
+
     doLast {
-        val args = mutableListOf("cargo", "build")
-        if (release) args.add("--release")
-        
-        exec {
-            workingDir = cargoDir
-            commandLine(args)
-        }
-        
         val osName = System.getProperty("os.name").lowercase()
         val libName = when {
             osName.contains("win") -> "kwtransport_ffi.dll"
@@ -73,9 +61,8 @@ val buildRustTask = tasks.register("buildRust") {
             else -> "libkwtransport_ffi.so"
         }
         
-        val targetType = if (release) "release" else "debug"
+        val targetType = if (isRelease) "release" else "debug"
         val sourceFile = cargoDir.resolve("target/$targetType/$libName")
-        val targetDir = layout.buildDirectory.dir("rust-lib").get().asFile
         targetDir.mkdirs()
         
         if (sourceFile.exists()) {
@@ -86,6 +73,15 @@ val buildRustTask = tasks.register("buildRust") {
     }
 }
 
+val cleanRustTask = tasks.register<Exec>("cleanRust") {
+    workingDir = file("../kwtransport-ffi")
+    commandLine("cargo", "clean")
+}
+
+tasks.named("clean") {
+    dependsOn(cleanRustTask)
+}
+
 tasks.named("jvmProcessResources") {
     dependsOn(buildRustTask)
 }
@@ -94,6 +90,13 @@ tasks.withType<Test> {
     testLogging {
         showStandardStreams = true
         events("passed", "skipped", "failed")
+    }
+    
+    val excludePattern = project.findProperty("excludeTests") as? String
+    if (excludePattern != null) {
+        filter {
+             excludeTestsMatching(excludePattern)
+        }
     }
 }
 

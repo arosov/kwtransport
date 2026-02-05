@@ -1,4 +1,7 @@
 use robusta_jni::bridge;
+use std::sync::atomic::{AtomicI64, Ordering};
+
+pub static ACTIVE_OBJECT_COUNT: AtomicI64 = AtomicI64::new(0);
 
 #[bridge]
 mod jni {
@@ -7,6 +10,7 @@ mod jni {
     use robusta_jni::jni::objects::{JObject, JValue};
     use std::net::SocketAddr;
     use std::time::Duration;
+    use std::sync::atomic::Ordering;
     use crate::{
         NativeEndpoint, NativeConnection, NativeSendStream, NativeRecvStream, NativeIdentity, 
         NativeStreamPair, NativeDatagram,
@@ -23,6 +27,9 @@ mod jni {
     impl KwTransport {
         pub extern "jni" fn hello() -> String {
             "Hello from Rust!".to_string()
+        }
+        pub extern "jni" fn getDiagnosticCount() -> i64 {
+            crate::ACTIVE_OBJECT_COUNT.load(Ordering::Relaxed)
         }
     }
 
@@ -78,6 +85,7 @@ mod jni {
                 }
             };
             
+            crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
             Ok(Box::into_raw(Box::new(NativeEndpoint::new_client(endpoint))) as i64)
         }
 
@@ -95,6 +103,7 @@ mod jni {
             };
 
             let identity = unsafe { Box::from_raw(cert_handle as *mut NativeIdentity) }.0;
+            crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
 
             let server_config = ServerConfig::builder()
                 .with_bind_address(addr)
@@ -109,6 +118,7 @@ mod jni {
                 }
             };
             
+            crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
             Ok(Box::into_raw(Box::new(NativeEndpoint::new_server(endpoint))) as i64)
         }
 
@@ -130,6 +140,7 @@ mod jni {
                 match result {
                     Ok(connection) => {
                         let conn_handle = Box::into_raw(Box::new(NativeConnection(connection))) as i64;
+                        crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                         let _ = JniHelper::onNotify(&env, id, conn_handle, "".to_string(), "".to_string());
                     }
                     Err(e) => {
@@ -180,11 +191,10 @@ mod jni {
                              match result {
                                  Ok(connection) => {
                                      let conn_handle = Box::into_raw(Box::new(NativeConnection(connection))) as i64;
+                                     crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                                      let _ = JniHelper::onNotify(&env, id, conn_handle, "".to_string(), "".to_string());
                                  }
                                  Err(e) => {
-                                     // For multi-shot, we might not want to close the flow on a single connection error
-                                     // But let's log it or notify for now.
                                      let _ = JniHelper::onNotify(&env, id, 0, "CONNECTION".to_string(), e.to_string());
                                  }
                              }
@@ -203,6 +213,7 @@ mod jni {
             if handle != 0 {
                 unsafe {
                     let _ = Box::from_raw(handle as *mut NativeEndpoint);
+                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
         }
@@ -224,6 +235,7 @@ mod jni {
                                 let vm = JAVA_VM.get().expect("JavaVM not initialized");
                                 let env = vm.attach_current_thread().expect("Failed to attach thread");
                                 let h = Box::into_raw(Box::new(NativeSendStream(stream))) as i64;
+                                crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                                 let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                             }
                             Err(e) => {
@@ -260,6 +272,7 @@ mod jni {
                                     recv: Some(NativeRecvStream(recv)),
                                 };
                                 let h = Box::into_raw(Box::new(pair)) as i64;
+                                crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                                 let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                             }
                             Err(e) => {
@@ -290,6 +303,7 @@ mod jni {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
                         let h = Box::into_raw(Box::new(NativeRecvStream(stream))) as i64;
+                        crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                         let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                     }
                     Err(e) => {
@@ -316,6 +330,7 @@ mod jni {
                             recv: Some(NativeRecvStream(recv)),
                         };
                         let h = Box::into_raw(Box::new(pair)) as i64;
+                        crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                         let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                     }
                     Err(e) => {
@@ -350,6 +365,7 @@ mod jni {
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
                         let d = NativeDatagram(datagram.to_vec().into_boxed_slice());
                         let h = Box::into_raw(Box::new(d)) as i64;
+                        crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
                         let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
                     }
                     Err(e) => {
@@ -366,6 +382,7 @@ mod jni {
             if handle != 0 {
                 unsafe {
                     let _ = Box::from_raw(handle as *mut NativeConnection);
+                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
         }
@@ -378,20 +395,29 @@ mod jni {
         pub extern "jni" fn getSend(handle: i64) -> i64 {
             let pair = unsafe { &mut *(handle as *mut NativeStreamPair) };
             match pair.send.take() {
-                Some(s) => Box::into_raw(Box::new(s)) as i64,
+                Some(s) => {
+                    crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                    Box::into_raw(Box::new(s)) as i64
+                },
                 None => 0,
             }
         }
         pub extern "jni" fn getRecv(handle: i64) -> i64 {
             let pair = unsafe { &mut *(handle as *mut NativeStreamPair) };
             match pair.recv.take() {
-                Some(s) => Box::into_raw(Box::new(s)) as i64,
+                Some(s) => {
+                    crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                    Box::into_raw(Box::new(s)) as i64
+                },
                 None => 0,
             }
         }
         pub extern "jni" fn destroy(handle: i64) {
             if handle != 0 {
-                unsafe { let _ = Box::from_raw(handle as *mut NativeStreamPair); }
+                unsafe { 
+                    let _ = Box::from_raw(handle as *mut NativeStreamPair); 
+                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                }
             }
         }
     }
@@ -406,185 +432,106 @@ mod jni {
         }
         pub extern "jni" fn destroy(handle: i64) {
             if handle != 0 {
-                unsafe { let _ = Box::from_raw(handle as *mut NativeDatagram); }
+                unsafe { 
+                    let _ = Box::from_raw(handle as *mut NativeDatagram); 
+                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                }
             }
         }
     }
 
             #[package(ovh.devcraft.kwtransport)]
-
             pub struct SendStream;
 
-        
-
             impl SendStream {
-
                 pub extern "jni" fn write(_env: &JNIEnv, handle: i64, data: Box<[u8]>, id: i64) {
-
                      let ptr = PtrSendSendStream(handle as *mut NativeSendStream);
-
                      RUNTIME.spawn(async move {
-
                          let stream = unsafe { ptr.as_mut() };
-
-                         
-
                          match stream.0.write_all(&data).await {
-
                              Ok(_) => {
-
                                  let vm = JAVA_VM.get().expect("JavaVM not initialized");
-
                                  let env = vm.attach_current_thread().expect("Failed to attach thread");
-
                                  let _ = JniHelper::onNotify(&env, id, 1, "".to_string(), "".to_string());
-
                              },
-
                              Err(e) => {
-
                                  let vm = JAVA_VM.get().expect("JavaVM not initialized");
-
                                  let env = vm.attach_current_thread().expect("Failed to attach thread");
-
                                  let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string());
-
                              }
-
                          }
-
                      });
-
                 }
-
                 pub extern "jni" fn destroy(handle: i64) {
-
                     if handle != 0 {
-
-                        unsafe { let _ = Box::from_raw(handle as *mut NativeSendStream); }
-
+                        unsafe { 
+                            let _ = Box::from_raw(handle as *mut NativeSendStream); 
+                            crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                        }
                     }
-
                 }
-
             }
 
-        
-
             #[package(ovh.devcraft.kwtransport)]
-
             pub struct RecvStream;
 
-        
-
             impl RecvStream {
-
                 pub extern "jni" fn read<'env>(env: &JNIEnv<'env>, handle: i64, jbuffer: JObject<'env>, id: i64) -> JniResult<()> {
-
                      let ptr = PtrSendRecvStream(handle as *mut NativeRecvStream);
-
                      let jbuffer_ref = env.new_global_ref(jbuffer)?;
-
                      
-
                      RUNTIME.spawn(async move {
-
                          let stream = unsafe { ptr.as_mut() };
-
                          let vm = JAVA_VM.get().expect("JavaVM not initialized");
-
                          
-
                          let len = {
-
                              let env = vm.attach_current_thread().expect("Failed to attach thread");
-
                              let jbuff = jbuffer_ref.as_obj();
-
                              let raw_jbuff = jbuff.into_inner();
-
                              match env.get_array_length(raw_jbuff as robusta_jni::jni::sys::jbyteArray) {
-
                                  Ok(l) => l as usize,
-
                                  Err(e) => {
-
                                      let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string());
-
                                      return;
-
                                  }
-
                              }
-
                          };
-
                          
-
                          let mut buf = vec![0u8; len];
-
                          match stream.0.read(&mut buf).await {
-
                              Ok(bytes_read) => {
-
                                  let env = vm.attach_current_thread().expect("Failed to attach thread");
-
                                  match bytes_read {
-
                                      Some(n) => {
-
                                          let jbuff = jbuffer_ref.as_obj();
-
                                          let raw_jbuff = jbuff.into_inner();
-
                                          if let Err(e) = env.set_byte_array_region(raw_jbuff as robusta_jni::jni::sys::jbyteArray, 0, bytemuck::cast_slice(&buf[..n])) {
-
                                               let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string());
-
                                               return;
-
                                          }
-
                                          let _ = JniHelper::onNotify(&env, id, n as i64, "".to_string(), "".to_string());
-
                                      },
-
                                      None => {
-
                                          let _ = JniHelper::onNotify(&env, id, -1, "".to_string(), "".to_string());
-
                                      }
-
                                  }
-
                              },
-
                              Err(e) => {
-
                                  let env = vm.attach_current_thread().expect("Failed to attach thread");
-
                                  let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string());
-
                              }
-
                          }
-
                      });
-
                      Ok(())
-
                 }
-
                 pub extern "jni" fn destroy(handle: i64) {
-
                     if handle != 0 {
-
-                        unsafe { let _ = Box::from_raw(handle as *mut NativeRecvStream); }
-
+                        unsafe { 
+                            let _ = Box::from_raw(handle as *mut NativeRecvStream); 
+                            crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                        }
                     }
-
                 }
-
             }
 
     #[package(ovh.devcraft.kwtransport)]
@@ -594,7 +541,10 @@ mod jni {
         pub extern "jni" fn selfSigned(env: &JNIEnv, sans: Vec<String>) -> JniResult<i64> {
              let _guard = RUNTIME.enter();
              match Identity::self_signed(sans) {
-                 Ok(identity) => Ok(Box::into_raw(Box::new(NativeIdentity(identity))) as i64),
+                 Ok(identity) => {
+                     crate::ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+                     Ok(Box::into_raw(Box::new(NativeIdentity(identity))) as i64)
+                 },
                  Err(e) => {
                      let _ = env.throw_new("java/lang/IllegalArgumentException", e.to_string());
                      Ok(0)
@@ -606,6 +556,7 @@ mod jni {
             if handle != 0 {
                 unsafe {
                     let _ = Box::from_raw(handle as *mut NativeIdentity);
+                    crate::ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
         }
