@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import com.vanniktech.maven.publish.AndroidMultiVariantLibrary
 import java.util.concurrent.TimeUnit
 import java.util.Properties
 
@@ -57,11 +58,9 @@ mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
 
-    // Configure Android variants to publish (Debug only to skip release signing requirements)
-    configure(com.vanniktech.maven.publish.AndroidMultiVariantLibrary(
-        variants = listOf("debug"),
-        sourcesJar = true,
-        publishJavadocJar = true
+    // Configure Android variant to publish (Debug only to skip release signing requirements)
+    configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+        variant = "debug"
     ))
 
     pom {
