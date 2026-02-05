@@ -8,13 +8,28 @@ import kotlin.js.ExperimentalWasmJsInterop
 
 @OptIn(ExperimentalWasmJsInterop::class)
 @JsName("WebTransport")
-internal external class JsWebTransport(url: String) : JsAny {
+internal external class JsWebTransport(url: String, options: JsWebTransportOptions? = null) : JsAny {
     val ready: Promise<JsAny?>
     val closed: Promise<JsAny?>
     fun createBidirectionalStream(): Promise<JsWebTransportBidirectionalStream>
     val incomingBidirectionalStreams: JsReadableStream
     fun close()
 }
+
+internal external interface JsWebTransportOptions : JsAny {
+    var serverCertificateHashes: JsArray<JsWebTransportHash>?
+}
+
+internal external interface JsWebTransportHash : JsAny {
+    var algorithm: String
+    var value: JsUint8Array
+}
+
+@JsFun("() => ({})")
+internal external fun createJsWebTransportOptions(): JsWebTransportOptions
+
+@JsFun("() => ({})")
+internal external fun createJsWebTransportHash(): JsWebTransportHash
 
 internal external interface JsWebTransportBidirectionalStream : JsAny {
     val readable: JsReadableStream
