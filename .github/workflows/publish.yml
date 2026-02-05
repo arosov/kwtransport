@@ -44,6 +44,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android, i686-linux-android
+          components: rust-src
 
       - name: Explicitly add Rust targets
         run: rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
@@ -69,6 +70,7 @@ jobs:
         run: |
           echo "ndk.dir=$ANDROID_HOME/ndk/25.2.9519653" > local.properties
           cp local.properties kwtransport/local.properties
+          echo "NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
       - name: Run Smoke Tests
         if: ${{ github.event.inputs.publish-android-only != 'true' }}
