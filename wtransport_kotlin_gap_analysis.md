@@ -15,8 +15,8 @@ The current Kotlin `Endpoint.createClientEndpoint` exposes:
 - **Advanced TLS Config (`with_custom_tls`)**: Supported (Client Authentication, Custom Root CAs).
 
 ### Missing Features:
-- **Custom DNS Resolver (`dns_resolver`)**: Ability to plug in a custom DNS resolver (currently hardcoded to `TokioDnsResolver`). (Low Priority / High Complexity)
 - **Bind to Pre-existing Socket (`with_bind_socket`)**: Ability to pass an existing `UdpSocket`.
+- **Custom DNS Resolver (`dns_resolver`)**: Supported. `CustomDnsResolver` interface allows providing own logic for resolving hostnames.
 
 ## 2. Server Configuration (`ServerConfig`)
 
