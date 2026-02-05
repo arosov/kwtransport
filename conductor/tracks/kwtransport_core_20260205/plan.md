@@ -11,7 +11,7 @@ This phase focuses on exposing the necessary `wtransport` functionality via UniF
     - [ ] Add `open_uni_stream` and `accept_uni_stream` to `Connection`.
     - [ ] Add `open_bi_stream` and `accept_bi_stream` to `Connection`.
     - [ ] Define `SendStream` and `RecvStream` interfaces with `read` and `write` methods.
-- [ ] Task: Implement Stream logic in Rust.
+- [x] Task: Implement Stream logic in Rust. [619f31a]
     - [ ] Implement the stream wrappers in `kwtransport-ffi/src/lib.rs`.
     - [ ] Ensure proper async bridging with Tokio.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
