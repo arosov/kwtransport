@@ -114,7 +114,7 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
         }
 
     @JvmOverloads
-    fun close(code: Long = 0L, reason: String = "") {
+    fun closeWithDetails(code: Long = 0L, reason: String = "") {
         val h = handle.getAndSet(0L)
         if (h != 0L) {
             close(h, code, reason)
@@ -123,7 +123,7 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
     }
 
     override fun close() {
-        close(0L, "")
+        closeWithDetails(0L, "")
     }
 
     fun isClosed(): Boolean = handle.get() == 0L

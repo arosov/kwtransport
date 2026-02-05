@@ -31,6 +31,32 @@ The `composeApp` module contains a sample application demonstrating `kwtransport
 ./gradlew :composeApp:run
 ```
 
+### Running the CLI Chat Application
+
+The `cli-chat` module provides a simple command-line chat application to demonstrate basic client-server communication using WebTransport streams.
+
+1.  **Build the distribution (run once, or after code changes):**
+
+    ```bash
+    ./gradlew :cli-chat:installDist
+    ```
+
+2.  **Run the server:**
+    Open a terminal and execute:
+
+    ```bash
+    ./cli-chat/build/install/cli-chat/bin/cli-chat -s
+    ```
+
+3.  **Run the client (in a new terminal):**
+
+    ```bash
+    ./cli-chat/build/install/cli-chat/bin/cli-chat
+    ```
+
+    Type `exit` to close a chat session.
+
+
 ### Running Tests
 
 To run JVM tests for the `shared` module:
