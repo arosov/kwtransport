@@ -11,8 +11,12 @@ plugins {
     signing
 }
 
+val isCi = System.getenv("GITHUB_ACTIONS") == "true"
+
 signing {
-    useGpgCmd()
+    if (!isCi) {
+        useGpgCmd()
+    }
 }
 
 // Android Rust build configuration
