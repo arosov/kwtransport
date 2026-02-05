@@ -4,6 +4,7 @@ import ovh.devcraft.kwtransport.exceptions.KwTransportException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.await
+import org.khronos.webgl.Uint8Array
 
 actual class Endpoint internal constructor(
     private val certificateHashes: List<String> = emptyList()

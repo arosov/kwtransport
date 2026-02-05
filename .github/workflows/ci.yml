@@ -41,5 +41,5 @@ jobs:
       - name: Run JVM Tests
         run: ./gradlew :shared:cleanJvmTest :shared:jvmTest --no-configuration-cache
 
-      - name: Run WASM Integration Tests
-        run: ./scripts/run_wasm_integration_tests.sh
+      - name: Run Browser Integration Tests
+        run: ./scripts/run_browser_integration_tests.sh

@@ -22,7 +22,7 @@ until grep -q "SERVER_READY" test_server.log; do
 done
 echo "Server is ready."
 
-echo "Running WASM integration tests..."
-./gradlew :shared:cleanWasmJsTest :shared:wasmJsTest --no-configuration-cache
+echo "Running JS and WASM integration tests..."
+./gradlew :shared:cleanJsTest :shared:jsTest :shared:cleanWasmJsTest :shared:wasmJsTest --no-configuration-cache
 
 echo "Tests completed successfully!"

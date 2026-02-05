@@ -28,7 +28,3 @@ actual class SendStream internal constructor(private val writer: JsWritableStrea
         writer.close()
     }
 }
-
-private fun ByteArray.toUint8Array(): Uint8Array {
-    return Uint8Array(this.asDynamic().buffer as org.khronos.webgl.ArrayBuffer, this.asDynamic().byteOffset as Int, this.size)
-}

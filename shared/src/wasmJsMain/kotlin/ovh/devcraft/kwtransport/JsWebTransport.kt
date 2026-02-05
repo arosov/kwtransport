@@ -42,7 +42,16 @@ internal external class JsWebTransport(url: String, options: JsWebTransportOptio
     val closed: Promise<JsAny?>
     fun createBidirectionalStream(): Promise<JsWebTransportBidirectionalStream>
     val incomingBidirectionalStreams: JsReadableStream
+    fun createUnidirectionalStream(): Promise<JsWritableStream>
+    val incomingUnidirectionalStreams: JsReadableStream
+    val datagrams: JsWebTransportDatagrams
     fun close()
+}
+
+internal external interface JsWebTransportDatagrams : JsAny {
+    val readable: JsReadableStream
+    val writable: JsWritableStream
+    val maxDatagramSize: Int
 }
 
 internal external interface JsWebTransportOptions : JsAny {

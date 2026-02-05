@@ -14,8 +14,9 @@ actual class RecvStream internal constructor(private val reader: JsReadableStrea
             if (result.done) {
                 return -1
             }
-            result.value?.let { value ->
-                val kotlinArray = value.asByteArray()
+            val value = result.value
+            if (value != null && value != undefined) {
+                val kotlinArray = (value as org.khronos.webgl.Uint8Array).asByteArray()
                 val size = if (kotlinArray.size < buffer.size) kotlinArray.size else buffer.size
                 kotlinArray.copyInto(buffer, 0, 0, size)
                 return size
@@ -33,8 +34,9 @@ actual class RecvStream internal constructor(private val reader: JsReadableStrea
                 if (result.done) {
                     break
                 }
-                result.value?.let { value ->
-                    emit(value.asByteArray())
+                val value = result.value
+                if (value != null && value != undefined) {
+                    emit((value as org.khronos.webgl.Uint8Array).asByteArray())
                 }
             } catch (e: Throwable) {
                 throw KwTransportException("Failed to read chunk from stream: ${e.message}")
@@ -45,8 +47,4 @@ actual class RecvStream internal constructor(private val reader: JsReadableStrea
     actual override fun close() {
         reader.cancel()
     }
-}
-
-private fun Uint8Array.asByteArray(): ByteArray {
-    return Int8Array(buffer, byteOffset, length).asDynamic() as ByteArray
 }
