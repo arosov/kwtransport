@@ -2,6 +2,11 @@
 
 `kwtransport` is a Kotlin Multiplatform library that provides a high-performance wrapper around the `wtransport` Rust crate, bringing WebTransport capabilities to your Kotlin applications across JVM, Android, and WebAssembly (WASM) targets. It aims to offer an idiomatic and robust Kotlin API for establishing WebTransport connections, managing streams, and handling datagrams with efficiency and ease.
 
+> [!IMPORTANT]
+> **Disclaimer:** This project is almost entirely **LLM-generated** (via Gemini). The author has **no knowledge of Rust** and relied on AI to bridge the gap between Kotlin and the underlying Rust implementation. While it is functional and tested, there may be unidiomatic Rust code or performance pitfalls.
+>
+> **Contributions are highly welcome!** If you are a Rust expert or a Kotlin Multiplatform enthusiast, your help in refining the FFI bridge, improving memory management, or expanding target support would be greatly appreciated.
+
 ## Features
 
 *   **Kotlin Multiplatform:** Write once, run on JVM, Android, and WASM.
