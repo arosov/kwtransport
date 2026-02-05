@@ -39,11 +39,16 @@ The current Kotlin `Endpoint.createServerEndpoint` exposes:
 - **Datagram Events**: The current API has `sendDatagram` / `receiveDatagram`, but `wtransport` (via Quinn) exposes more granular events or stats which might be useful. (Medium Priority)
 - **Congestion Control**: No exposure of congestion controller statistics or configuration. (Low Priority)
 
-## 4. Error Handling (High Priority)
+## 4. Error Handling
 
-- **Error Granularity**: The JNI bridge maps some errors, but `wtransport` has a rich error hierarchy (`ConnectionError`, `StreamError`, etc.) that is partially flattened.
-- **Disconnection Reasons**: The exact reason code/message for a disconnection might not always be fully propagated or typed in Kotlin.
+- **Error Granularity**: Supported. `ConnectionException` now includes `errorCode` and `reason` for application-closed connections.
+- **Disconnection Reasons**: Supported.
+
+## 5. Streams
+
+- **Stream Priority**: QUIC/WebTransport supports stream prioritization, which is not exposed.
+- **Unidirectional Streams Management**: While supported, the API for managing the *number* of concurrent streams (flow control) is implicit via `acceptUni`/`openUni` but explicit limits (MaxConcurrentStreams) are not configurable.
 
 ## Recommendation
 
-Prioritize **Error Handling** improvements next. Providing richer error types and disconnection reasons allows applications to implement robust recovery logic.
+High priority gaps have been addressed. Future work could focus on advanced features like **Stream Priority** or **Custom DNS Resolver** if specific needs arise.

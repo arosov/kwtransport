@@ -27,7 +27,7 @@ internal object AsyncRegistry {
         pendingOps.remove(id)
     }
 
-    fun resolve(id: Long, result: Long, errorType: String, errorMessage: String) {
+    fun resolve(id: Long, result: Long, errorType: String, errorMessage: String, errorCode: Long, errorContext: String) {
         val entry = pendingOps[id] ?: return
         
         if (entry is CompletableDeferred<*>) {
@@ -36,7 +36,7 @@ internal object AsyncRegistry {
             val deferred = entry as CompletableDeferred<Long>
             
             if (errorType.isNotEmpty()) {
-                val exception = mapException(errorType, errorMessage)
+                val exception = mapException(errorType, errorMessage, errorCode, errorContext)
                 deferred.completeExceptionally(exception)
             } else {
                 deferred.complete(result)
@@ -49,16 +49,20 @@ internal object AsyncRegistry {
                 channel.trySend(result)
             } else {
                 // For flows, we might want to close the channel with an error or just log it
-                channel.close(mapException(errorType, errorMessage))
+                channel.close(mapException(errorType, errorMessage, errorCode, errorContext))
                 pendingOps.remove(id)
             }
         }
     }
 
-    private fun mapException(errorType: String, errorMessage: String): KwTransportException {
+    private fun mapException(errorType: String, errorMessage: String, errorCode: Long, errorContext: String): KwTransportException {
         return when (errorType) {
             "CONNECTING" -> ConnectingException(errorMessage, ConnectingErrorType.CONNECTION_ERROR)
-            "CONNECTION" -> ConnectionException(errorMessage, ConnectionErrorType.QUIC_PROTO)
+            "CONNECTION" -> ConnectionException(errorMessage, ConnectionErrorType.QUIC_PROTO, errorCode, errorContext.ifEmpty { null })
+            "CONNECTION_CLOSED" -> ConnectionException(errorMessage, ConnectionErrorType.CONNECTION_CLOSED, errorCode, errorContext.ifEmpty { null })
+            "APPLICATION_CLOSED" -> ConnectionException(errorMessage, ConnectionErrorType.APPLICATION_CLOSED, errorCode, errorContext.ifEmpty { null })
+            "LOCALLY_CLOSED" -> ConnectionException(errorMessage, ConnectionErrorType.LOCALLY_CLOSED)
+            "TIMED_OUT" -> ConnectionException(errorMessage, ConnectionErrorType.TIMED_OUT)
             "INVALID_URL" -> ConnectingException(errorMessage, ConnectingErrorType.INVALID_URL)
             "DNS_LOOKUP" -> ConnectingException(errorMessage, ConnectingErrorType.DNS_LOOKUP)
             "DNS_NOT_FOUND" -> ConnectingException(errorMessage, ConnectingErrorType.DNS_NOT_FOUND)

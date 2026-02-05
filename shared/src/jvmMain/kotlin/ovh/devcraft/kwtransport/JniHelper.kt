@@ -4,8 +4,8 @@ import ovh.devcraft.kwtransport.exceptions.*
 
 object JniHelper {
     @JvmStatic
-    fun onNotify(id: Long, result: Long, errorType: String, errorMessage: String) {
-        AsyncRegistry.resolve(id, result, errorType, errorMessage)
+    fun onNotify(id: Long, result: Long, errorType: String, errorMessage: String, errorCode: Long, errorContext: String) {
+        AsyncRegistry.resolve(id, result, errorType, errorMessage, errorCode, errorContext)
     }
 
     @JvmStatic

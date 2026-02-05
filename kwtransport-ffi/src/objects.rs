@@ -1,5 +1,7 @@
 use wtransport::endpoint::endpoint_side::{Client, Server};
 use tokio_util::sync::CancellationToken;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub struct NativeEndpoint {
     pub inner: EndpointInner,
@@ -32,31 +34,11 @@ pub struct NativeRecvStream(pub wtransport::RecvStream);
 pub struct NativeIdentity(pub wtransport::Identity);
 
 pub struct NativeStreamPair {
-    pub send: Option<NativeSendStream>,
-    pub recv: Option<NativeRecvStream>,
+    pub send: Option<Arc<Mutex<NativeSendStream>>>,
+    pub recv: Option<Arc<Mutex<NativeRecvStream>>>,
 }
 
 pub struct NativeDatagram(pub Box<[u8]>);
-
-#[derive(Copy, Clone)]
-pub struct PtrSend(pub *const NativeEndpoint);
-unsafe impl Send for PtrSend {}
-unsafe impl Sync for PtrSend {}
-
-#[derive(Copy, Clone)]
-pub struct PtrSendConnection(pub *const NativeConnection);
-unsafe impl Send for PtrSendConnection {}
-unsafe impl Sync for PtrSendConnection {}
-
-#[derive(Copy, Clone)]
-pub struct PtrSendSendStream(pub *mut NativeSendStream);
-unsafe impl Send for PtrSendSendStream {}
-unsafe impl Sync for PtrSendSendStream {}
-
-#[derive(Copy, Clone)]
-pub struct PtrSendRecvStream(pub *mut NativeRecvStream);
-unsafe impl Send for PtrSendRecvStream {}
-unsafe impl Sync for PtrSendRecvStream {}
 
 unsafe impl Send for NativeEndpoint {}
 unsafe impl Sync for NativeEndpoint {}
@@ -69,16 +51,3 @@ unsafe impl Sync for NativeSendStream {}
 
 unsafe impl Send for NativeRecvStream {}
 unsafe impl Sync for NativeRecvStream {}
-
-impl PtrSend {
-    pub unsafe fn as_ref(&self) -> &NativeEndpoint { &*self.0 }
-}
-impl PtrSendConnection {
-    pub unsafe fn as_ref(&self) -> &NativeConnection { &*self.0 }
-}
-impl PtrSendSendStream {
-    pub unsafe fn as_mut(self) -> &'static mut NativeSendStream { &mut *self.0 }
-}
-impl PtrSendRecvStream {
-    pub unsafe fn as_mut(self) -> &'static mut NativeRecvStream { &mut *self.0 }
-}

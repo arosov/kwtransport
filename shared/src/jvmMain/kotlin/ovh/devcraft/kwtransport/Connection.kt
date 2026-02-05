@@ -32,6 +32,9 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
 
         @JvmStatic
         private external fun getStats(handle: Long): ConnectionStats
+
+        @JvmStatic
+        private external fun close(handle: Long, code: Long, reason: String)
     }
 
     suspend fun openUni(): SendStream {
@@ -99,11 +102,16 @@ class Connection internal constructor(handle: Long) : AutoCloseable {
         return getStats(h)
     }
 
-    override fun close() {
+    fun close(code: Long, reason: String) {
         val h = handle.getAndSet(0L)
         if (h != 0L) {
+            close(h, code, reason)
             destroy(h)
         }
+    }
+
+    override fun close() {
+        close(0L, "")
     }
 
     fun isClosed(): Boolean = handle.get() == 0L

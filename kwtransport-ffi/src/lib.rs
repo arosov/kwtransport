@@ -13,20 +13,20 @@ mod jni {
     use std::net::SocketAddr;
     use std::time::Duration;
     use std::sync::atomic::Ordering;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
     
     use crate::objects::{
         NativeEndpoint, NativeConnection, NativeSendStream, NativeRecvStream, NativeIdentity, 
         NativeStreamPair, NativeDatagram,
-        PtrSend, PtrSendConnection, PtrSendSendStream, PtrSendRecvStream,
         EndpointInner
     };
     use crate::runtime::{RUNTIME, JAVA_VM, ACTIVE_OBJECT_COUNT};
-    use crate::errors::{map_conn_err, map_stream_err, map_send_datagram_err};
+    use crate::errors::{map_conn_err, map_stream_err, map_send_datagram_err, map_connecting_err};
     use crate::utils::apply_transport_config;
     
     use wtransport::{ClientConfig, ServerConfig, Identity};
     use wtransport::config::Ipv6DualStackConfig;
-    use wtransport::error::{ConnectingError, ConnectionError};
 
     #[package(ovh.devcraft.kwtransport)]
     pub struct KwTransport;
@@ -48,7 +48,7 @@ mod jni {
         pub extern "java" fn throwConnectionException(env: &JNIEnv, message: String, type_name: String) -> JniResult<()> {}
         pub extern "java" fn throwStreamOpeningException(env: &JNIEnv, message: String, type_name: String) -> JniResult<()> {}
         pub extern "java" fn throwSendDatagramException(env: &JNIEnv, message: String, type_name: String) -> JniResult<()> {}
-        pub extern "java" fn onNotify(env: &JNIEnv, id: i64, result: i64, error_type: String, error_message: String) -> JniResult<()> {}
+        pub extern "java" fn onNotify(env: &JNIEnv, id: i64, result: i64, error_type: String, error_message: String, error_code: i64, error_context: String) -> JniResult<()> {}
     }
 
     #[package(ovh.devcraft.kwtransport)]
@@ -132,7 +132,7 @@ mod jni {
             };
             
             ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-            Ok(Box::into_raw(Box::new(NativeEndpoint::new_client(endpoint))) as i64)
+            Ok(Arc::into_raw(Arc::new(NativeEndpoint::new_client(endpoint))) as i64)
         }
 
         #[call_type(unchecked)]
@@ -157,7 +157,9 @@ mod jni {
                 }
             };
 
-            let identity = unsafe { Box::from_raw(cert_handle as *mut NativeIdentity) }.0;
+            let identity = unsafe { Arc::from_raw(cert_handle as *const NativeIdentity) };
+            let identity_cloned = identity.0.clone_identity();
+            
             ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
 
             let dual_stack_config = match ipv6_dual_stack_config {
@@ -169,7 +171,7 @@ mod jni {
             let mut builder = match addr {
                 SocketAddr::V4(_) => ServerConfig::builder().with_bind_address(addr),
                 SocketAddr::V6(addr_v6) => ServerConfig::builder().with_bind_address_v6(addr_v6, dual_stack_config),
-            }.with_identity(identity);
+            }.with_identity(identity_cloned);
 
             if max_idle_timeout_millis > 0 {
                 builder = builder.max_idle_timeout(Some(Duration::from_millis(max_idle_timeout_millis as u64))).unwrap();
@@ -198,15 +200,16 @@ mod jni {
             };
             
             ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-            Ok(Box::into_raw(Box::new(NativeEndpoint::new_server(endpoint))) as i64)
+            Ok(Arc::into_raw(Arc::new(NativeEndpoint::new_server(endpoint))) as i64)
         }
 
         pub extern "jni" fn connect(_env: &JNIEnv, handle: i64, id: i64, url: String) {
-            let ptr = PtrSend(handle as *const NativeEndpoint);
+            let endpoint = unsafe { Arc::from_raw(handle as *const NativeEndpoint) };
+            let endpoint_clone = Arc::clone(&endpoint);
+            std::mem::forget(endpoint);
             
             RUNTIME.spawn(async move {
-                let endpoint_ref = unsafe { ptr.as_ref() };
-                let client = match &endpoint_ref.inner {
+                let client = match &endpoint_clone.inner {
                     EndpointInner::Client(c) => c,
                     _ => return,
                 };
@@ -218,37 +221,26 @@ mod jni {
                 
                 match result {
                     Ok(connection) => {
-                        let conn_handle = Box::into_raw(Box::new(NativeConnection(connection))) as i64;
+                        let conn_handle = Arc::into_raw(Arc::new(NativeConnection(connection))) as i64;
                         ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                        let _ = JniHelper::onNotify(&env, id, conn_handle, "".to_string(), "".to_string());
+                        let _ = JniHelper::onNotify(&env, id, conn_handle, "".to_string(), "".to_string(), 0, "".to_string());
                     }
                     Err(e) => {
-                        let (ex_type, msg) = match e {
-                            ConnectingError::InvalidUrl(s) => ("INVALID_URL", s),
-                            ConnectingError::DnsLookup(e) => ("DNS_LOOKUP", e.to_string()),
-                            ConnectingError::DnsNotFound => ("DNS_NOT_FOUND", "DNS not found".to_string()),
-                            ConnectingError::ConnectionError(_) => ("CONNECTION", e.to_string()),
-                            ConnectingError::SessionRejected => ("SESSION_REJECTED", "Session rejected".to_string()),
-                            ConnectingError::ReservedHeader(s) => ("RESERVED_HEADER", s),
-                            ConnectingError::EndpointStopping => ("ENDPOINT_STOPPING", "Endpoint stopping".to_string()),
-                            ConnectingError::CidsExhausted => ("CIDS_EHAUSTED", "CIDs exhausted".to_string()),
-                            ConnectingError::InvalidServerName(s) => ("INVALID_SERVER_NAME", s),
-                            ConnectingError::InvalidRemoteAddress(a) => ("INVALID_REMOTE_ADDRESS", a.to_string()),
-                        };
-                        let _ = JniHelper::onNotify(&env, id, 0, ex_type.to_string(), msg);
+                        let (ex_type, msg, code, ctx) = map_connecting_err(e);
+                        let _ = JniHelper::onNotify(&env, id, 0, ex_type, msg, code, ctx);
                     }
                 }
             });
         }
 
         pub extern "jni" fn listenSessions(_env: &JNIEnv, handle: i64, id: i64) {
-            let ptr = PtrSend(handle as *const NativeEndpoint);
-            let endpoint_ref = unsafe { &*ptr.0 };
-            let cancel_token = endpoint_ref.cancel_token.clone();
+            let endpoint = unsafe { Arc::from_raw(handle as *const NativeEndpoint) };
+            let endpoint_clone = Arc::clone(&endpoint);
+            let cancel_token = endpoint_clone.cancel_token.clone();
+            std::mem::forget(endpoint);
             
             RUNTIME.spawn(async move {
-                let endpoint_ref = unsafe { ptr.as_ref() };
-                let server = match &endpoint_ref.inner {
+                let server = match &endpoint_clone.inner {
                     EndpointInner::Server(s) => s,
                     _ => return,
                 };
@@ -269,12 +261,12 @@ mod jni {
                              let env = vm.attach_current_thread().expect("Failed to attach thread");
                              match result {
                                  Ok(connection) => {
-                                     let conn_handle = Box::into_raw(Box::new(NativeConnection(connection))) as i64;
+                                     let conn_handle = Arc::into_raw(Arc::new(NativeConnection(connection))) as i64;
                                      ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                                     let _ = JniHelper::onNotify(&env, id, conn_handle, "".to_string(), "".to_string());
+                                     let _ = JniHelper::onNotify(&env, id, conn_handle, "".to_string(), "".to_string(), 0, "".to_string());
                                  }
                                  Err(e) => {
-                                     let _ = JniHelper::onNotify(&env, id, 0, "CONNECTION".to_string(), e.to_string());
+                                     let _ = JniHelper::onNotify(&env, id, 0, "CONNECTION".to_string(), e.to_string(), 0, "".to_string());
                                  }
                              }
                         }
@@ -284,17 +276,18 @@ mod jni {
         }
 
         pub extern "jni" fn stopListenSessions(_env: &JNIEnv, handle: i64) {
-             let endpoint_ref = unsafe { &*(handle as *const NativeEndpoint) };
-             endpoint_ref.cancel_token.cancel();
+             let endpoint = unsafe { Arc::from_raw(handle as *const NativeEndpoint) };
+             endpoint.cancel_token.cancel();
+             std::mem::forget(endpoint);
         }
 
         pub extern "jni" fn getLocalAddr(env: &JNIEnv, handle: i64) -> JniResult<String> {
-            let ptr = PtrSend(handle as *const NativeEndpoint);
-            let endpoint_ref = unsafe { ptr.as_ref() };
-            let addr = match &endpoint_ref.inner {
+            let endpoint = unsafe { Arc::from_raw(handle as *const NativeEndpoint) };
+            let addr = match &endpoint.inner {
                 EndpointInner::Client(c) => c.local_addr(),
                 EndpointInner::Server(s) => s.local_addr(),
             };
+            std::mem::forget(endpoint);
             
             match addr {
                 Ok(a) => Ok(a.to_string()),
@@ -308,7 +301,7 @@ mod jni {
         pub extern "jni" fn destroy(handle: i64) {
             if handle != 0 {
                 unsafe {
-                    let _ = Box::from_raw(handle as *mut NativeEndpoint);
+                    let _ = Arc::from_raw(handle as *const NativeEndpoint);
                     ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
@@ -320,120 +313,124 @@ mod jni {
 
     impl Connection {
         pub extern "jni" fn openUni(_env: &JNIEnv, handle: i64, id: i64) {
-             let ptr = PtrSendConnection(handle as *const NativeConnection);
+             let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
+             let conn_clone = Arc::clone(&conn);
+             std::mem::forget(conn);
+
              RUNTIME.spawn(async move {
-                 let conn = unsafe { ptr.as_ref() };
-                 
-                 match conn.0.open_uni().await {
+                 match conn_clone.0.open_uni().await {
                     Ok(opening) => {
                         match opening.await {
                             Ok(stream) => {
                                 let vm = JAVA_VM.get().expect("JavaVM not initialized");
                                 let env = vm.attach_current_thread().expect("Failed to attach thread");
-                                let h = Box::into_raw(Box::new(NativeSendStream(stream))) as i64;
+                                let h = Arc::into_raw(Arc::new(Mutex::new(NativeSendStream(stream)))) as i64;
                                 ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                                let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
+                                let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string(), 0, "".to_string());
                             }
                             Err(e) => {
                                 let vm = JAVA_VM.get().expect("JavaVM not initialized");
                                 let env = vm.attach_current_thread().expect("Failed to attach thread");
-                                let (t, m) = map_stream_err(e);
-                                let _ = JniHelper::onNotify(&env, id, 0, t, m);
+                                let (t, m, c, ctx) = map_stream_err(e);
+                                let _ = JniHelper::onNotify(&env, id, 0, t, m, c, ctx);
                             }
                         }
                     }
                     Err(e) => {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
-                        let (t, m) = map_conn_err(e);
-                        let _ = JniHelper::onNotify(&env, id, 0, t, m);
+                        let (t, m, c, ctx) = map_conn_err(e);
+                        let _ = JniHelper::onNotify(&env, id, 0, t, m, c, ctx);
                     }
                  }
              });
         }
 
         pub extern "jni" fn openBi(_env: &JNIEnv, handle: i64, id: i64) {
-             let ptr = PtrSendConnection(handle as *const NativeConnection);
+             let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
+             let conn_clone = Arc::clone(&conn);
+             std::mem::forget(conn);
+
              RUNTIME.spawn(async move {
-                 let conn = unsafe { ptr.as_ref() };
-                 
-                 match conn.0.open_bi().await {
+                 match conn_clone.0.open_bi().await {
                     Ok(opening) => {
                         match opening.await {
                             Ok((send, recv)) => {
                                 let vm = JAVA_VM.get().expect("JavaVM not initialized");
                                 let env = vm.attach_current_thread().expect("Failed to attach thread");
                                 let pair = NativeStreamPair {
-                                    send: Some(NativeSendStream(send)),
-                                    recv: Some(NativeRecvStream(recv)),
+                                    send: Some(Arc::new(Mutex::new(NativeSendStream(send)))),
+                                    recv: Some(Arc::new(Mutex::new(NativeRecvStream(recv)))),
                                 };
                                 let h = Box::into_raw(Box::new(pair)) as i64;
                                 ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                                let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
+                                let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string(), 0, "".to_string());
                             }
                             Err(e) => {
                                 let vm = JAVA_VM.get().expect("JavaVM not initialized");
                                 let env = vm.attach_current_thread().expect("Failed to attach thread");
-                                let (t, m) = map_stream_err(e);
-                                let _ = JniHelper::onNotify(&env, id, 0, t, m);
+                                let (t, m, c, ctx) = map_stream_err(e);
+                                let _ = JniHelper::onNotify(&env, id, 0, t, m, c, ctx);
                             }
                         }
                     }
                     Err(e) => {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
-                        let (t, m) = map_conn_err(e);
-                        let _ = JniHelper::onNotify(&env, id, 0, t, m);
+                        let (t, m, c, ctx) = map_conn_err(e);
+                        let _ = JniHelper::onNotify(&env, id, 0, t, m, c, ctx);
                     }
                  }
              });
         }
 
         pub extern "jni" fn acceptUni(_env: &JNIEnv, handle: i64, id: i64) {
-             let ptr = PtrSendConnection(handle as *const NativeConnection);
+             let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
+             let conn_clone = Arc::clone(&conn);
+             std::mem::forget(conn);
+
              RUNTIME.spawn(async move {
-                 let conn = unsafe { ptr.as_ref() };
-                 
-                 match conn.0.accept_uni().await {
+                 match conn_clone.0.accept_uni().await {
                     Ok(stream) => {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
-                        let h = Box::into_raw(Box::new(NativeRecvStream(stream))) as i64;
+                        let h = Arc::into_raw(Arc::new(Mutex::new(NativeRecvStream(stream)))) as i64;
                         ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                        let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
+                        let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string(), 0, "".to_string());
                     }
                     Err(e) => {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
-                        let (t, m) = map_conn_err(e);
-                        let _ = JniHelper::onNotify(&env, id, 0, t, m);
+                        let (t, m, c, ctx) = map_conn_err(e);
+                        let _ = JniHelper::onNotify(&env, id, 0, t, m, c, ctx);
                     }
                  }
              });
         }
 
         pub extern "jni" fn acceptBi(_env: &JNIEnv, handle: i64, id: i64) {
-             let ptr = PtrSendConnection(handle as *const NativeConnection);
+             let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
+             let conn_clone = Arc::clone(&conn);
+             std::mem::forget(conn);
+
              RUNTIME.spawn(async move {
-                 let conn = unsafe { ptr.as_ref() };
-                 
-                 match conn.0.accept_bi().await {
+                 match conn_clone.0.accept_bi().await {
                     Ok((send, recv)) => {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
                         let pair = NativeStreamPair {
-                            send: Some(NativeSendStream(send)),
-                            recv: Some(NativeRecvStream(recv)),
+                            send: Some(Arc::new(Mutex::new(NativeSendStream(send)))),
+                            recv: Some(Arc::new(Mutex::new(NativeRecvStream(recv)))),
                         };
                         let h = Box::into_raw(Box::new(pair)) as i64;
                         ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                        let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
+                        let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string(), 0, "".to_string());
                     }
                     Err(e) => {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
-                        let (t, m) = map_conn_err(e);
-                        let _ = JniHelper::onNotify(&env, id, 0, t, m);
+                        let (t, m, c, ctx) = map_conn_err(e);
+                        let _ = JniHelper::onNotify(&env, id, 0, t, m, c, ctx);
                     }
                  }
              });
@@ -441,43 +438,46 @@ mod jni {
 
         pub extern "jni" fn sendDatagram(env: &JNIEnv, handle: i64, data: Box<[u8]>) -> JniResult<()> {
             let _guard = RUNTIME.enter();
-            let native_connection = unsafe { &*(handle as *const NativeConnection) };
+            let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
             
-            if let Err(e) = native_connection.0.send_datagram(data) {
-                let (t, m) = map_send_datagram_err(e);
-                let _ = JniHelper::throwSendDatagramException(env, m, t);
-            }
-            Ok(())
+            let res = if let Err(e) = conn.0.send_datagram(data) {
+                let (t, m, _c, _ctx) = map_send_datagram_err(e);
+                JniHelper::throwSendDatagramException(env, m, t)
+            } else {
+                Ok(())
+            };
+            std::mem::forget(conn);
+            res
         }
 
         pub extern "jni" fn receiveDatagram(_env: &JNIEnv, handle: i64, id: i64) {
-             let ptr = PtrSendConnection(handle as *const NativeConnection);
+             let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
+             let conn_clone = Arc::clone(&conn);
+             std::mem::forget(conn);
+
              RUNTIME.spawn(async move {
-                 let conn = unsafe { ptr.as_ref() };
-                 
-                 match conn.0.receive_datagram().await {
+                 match conn_clone.0.receive_datagram().await {
                     Ok(datagram) => {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
                         let d = NativeDatagram(datagram.to_vec().into_boxed_slice());
                         let h = Box::into_raw(Box::new(d)) as i64;
                         ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                        let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string());
+                        let _ = JniHelper::onNotify(&env, id, h, "".to_string(), "".to_string(), 0, "".to_string());
                     }
                     Err(e) => {
                         let vm = JAVA_VM.get().expect("JavaVM not initialized");
                         let env = vm.attach_current_thread().expect("Failed to attach thread");
-                        let (t, m) = map_conn_err(e);
-                        let _ = JniHelper::onNotify(&env, id, 0, t, m);
+                        let (t, m, c, ctx) = map_conn_err(e);
+                        let _ = JniHelper::onNotify(&env, id, 0, t, m, c, ctx);
                     }
                  }
              });
         }
 
         pub extern "jni" fn getStats<'env>(env: &JNIEnv<'env>, handle: i64) -> JniResult<JObject<'env>> {
-            let conn = unsafe { &*(handle as *const NativeConnection) };
+            let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
             
-            // Access quic_connection directly if possible or via method if exposed
             let stats = conn.0.quic_connection().stats();
             let path_stats = stats.path;
 
@@ -491,13 +491,21 @@ mod jni {
                 JValue::Long(path_stats.congestion_events as i64)
             ])?;
 
+            std::mem::forget(conn);
             Ok(obj)
+        }
+
+        pub extern "jni" fn close(_env: &JNIEnv, handle: i64, code: i64, reason: String) {
+            let conn = unsafe { Arc::from_raw(handle as *const NativeConnection) };
+            let var_int_code = wtransport::VarInt::try_from(code as u64).unwrap_or(wtransport::VarInt::from_u32(0));
+            conn.0.close(var_int_code, reason.as_bytes());
+            std::mem::forget(conn);
         }
 
         pub extern "jni" fn destroy(handle: i64) {
             if handle != 0 {
                 unsafe {
-                    let _ = Box::from_raw(handle as *mut NativeConnection);
+                    let _ = Arc::from_raw(handle as *const NativeConnection);
                     ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
@@ -513,7 +521,7 @@ mod jni {
             match pair.send.take() {
                 Some(s) => {
                     ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                    Box::into_raw(Box::new(s)) as i64
+                    Arc::into_raw(s) as i64
                 },
                 None => 0,
             }
@@ -523,7 +531,7 @@ mod jni {
             match pair.recv.take() {
                 Some(s) => {
                     ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                    Box::into_raw(Box::new(s)) as i64
+                    Arc::into_raw(s) as i64
                 },
                 None => 0,
             }
@@ -561,19 +569,22 @@ mod jni {
 
             impl SendStream {
                 pub extern "jni" fn write(_env: &JNIEnv, handle: i64, data: Box<[u8]>, id: i64) {
-                     let ptr = PtrSendSendStream(handle as *mut NativeSendStream);
+                     let stream = unsafe { Arc::from_raw(handle as *const Mutex<NativeSendStream>) };
+                     let stream_clone = Arc::clone(&stream);
+                     std::mem::forget(stream);
+
                      RUNTIME.spawn(async move {
-                         let stream = unsafe { ptr.as_mut() };
-                         match stream.0.write_all(&data).await {
+                         let mut guard = stream_clone.lock().await;
+                         match guard.0.write_all(&data).await {
                              Ok(_) => {
                                  let vm = JAVA_VM.get().expect("JavaVM not initialized");
                                  let env = vm.attach_current_thread().expect("Failed to attach thread");
-                                 let _ = JniHelper::onNotify(&env, id, 1, "".to_string(), "".to_string());
+                                 let _ = JniHelper::onNotify(&env, id, 1, "".to_string(), "".to_string(), 0, "".to_string());
                              },
                              Err(e) => {
                                  let vm = JAVA_VM.get().expect("JavaVM not initialized");
                                  let env = vm.attach_current_thread().expect("Failed to attach thread");
-                                 let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string());
+                                 let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string(), 0, "".to_string());
                              }
                          }
                      });
@@ -581,7 +592,7 @@ mod jni {
                 pub extern "jni" fn destroy(handle: i64) {
                     if handle != 0 {
                         unsafe { 
-                            let _ = Box::from_raw(handle as *mut NativeSendStream); 
+                            let _ = Arc::from_raw(handle as *const Mutex<NativeSendStream>); 
                             ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                         }
                     }
@@ -593,11 +604,13 @@ mod jni {
 
             impl RecvStream {
                 pub extern "jni" fn read<'env>(env: &JNIEnv<'env>, handle: i64, jbuffer: JObject<'env>, id: i64) -> JniResult<()> {
-                     let ptr = PtrSendRecvStream(handle as *mut NativeRecvStream);
+                     let stream = unsafe { Arc::from_raw(handle as *const Mutex<NativeRecvStream>) };
+                     let stream_clone = Arc::clone(&stream);
+                     std::mem::forget(stream);
+                     
                      let jbuffer_ref = env.new_global_ref(jbuffer)?;
                      
                      RUNTIME.spawn(async move {
-                         let stream = unsafe { ptr.as_mut() };
                          let vm = JAVA_VM.get().expect("JavaVM not initialized");
                          
                          let len = {
@@ -607,14 +620,15 @@ mod jni {
                              match env.get_array_length(raw_jbuff as robusta_jni::jni::sys::jbyteArray) {
                                  Ok(l) => l as usize,
                                  Err(e) => {
-                                     let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string());
+                                     let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string(), 0, "".to_string());
                                      return;
                                  }
                              }
                          };
                          
                          let mut buf = vec![0u8; len];
-                         match stream.0.read(&mut buf).await {
+                         let mut guard = stream_clone.lock().await;
+                         match guard.0.read(&mut buf).await {
                              Ok(bytes_read) => {
                                  let env = vm.attach_current_thread().expect("Failed to attach thread");
                                  match bytes_read {
@@ -622,19 +636,19 @@ mod jni {
                                          let jbuff = jbuffer_ref.as_obj();
                                          let raw_jbuff = jbuff.into_inner();
                                          if let Err(e) = env.set_byte_array_region(raw_jbuff as robusta_jni::jni::sys::jbyteArray, 0, bytemuck::cast_slice(&buf[..n])) {
-                                              let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string());
+                                              let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string(), 0, "".to_string());
                                               return;
                                          }
-                                         let _ = JniHelper::onNotify(&env, id, n as i64, "".to_string(), "".to_string());
+                                         let _ = JniHelper::onNotify(&env, id, n as i64, "".to_string(), "".to_string(), 0, "".to_string());
                                      },
                                      None => {
-                                         let _ = JniHelper::onNotify(&env, id, -1, "".to_string(), "".to_string());
+                                         let _ = JniHelper::onNotify(&env, id, -1, "".to_string(), "".to_string(), 0, "".to_string());
                                      }
                                  }
                              },
                              Err(e) => {
                                  let env = vm.attach_current_thread().expect("Failed to attach thread");
-                                 let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string());
+                                 let _ = JniHelper::onNotify(&env, id, 0, "IO_EXCEPTION".to_string(), e.to_string(), 0, "".to_string());
                              }
                          }
                      });
@@ -643,7 +657,7 @@ mod jni {
                 pub extern "jni" fn destroy(handle: i64) {
                     if handle != 0 {
                         unsafe { 
-                            let _ = Box::from_raw(handle as *mut NativeRecvStream); 
+                            let _ = Arc::from_raw(handle as *const Mutex<NativeRecvStream>); 
                             ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                         }
                     }
@@ -659,7 +673,7 @@ mod jni {
              match Identity::self_signed(sans) {
                  Ok(identity) => {
                      ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
-                     Ok(Box::into_raw(Box::new(NativeIdentity(identity))) as i64)
+                     Ok(Arc::into_raw(Arc::new(NativeIdentity(identity))) as i64)
                  },
                  Err(e) => {
                      let _ = env.throw_new("java/lang/IllegalArgumentException", e.to_string());
@@ -669,20 +683,22 @@ mod jni {
         }
 
         pub extern "jni" fn getHash(env: &JNIEnv, handle: i64) -> JniResult<String> {
-             let identity = unsafe { &*(handle as *const NativeIdentity) };
-             match identity.0.certificate_chain().as_slice().first() {
+             let identity = unsafe { Arc::from_raw(handle as *const NativeIdentity) };
+             let res = match identity.0.certificate_chain().as_slice().first() {
                  Some(cert) => Ok(cert.hash().to_string()),
                  None => {
                      let _ = env.throw_new("java/lang/IllegalStateException", "Identity has no certificates");
                      Ok("".to_string())
                  }
-             }
+             };
+             std::mem::forget(identity);
+             res
         }
 
         pub extern "jni" fn destroy(handle: i64) {
             if handle != 0 {
                 unsafe {
-                    let _ = Box::from_raw(handle as *mut NativeIdentity);
+                    let _ = Arc::from_raw(handle as *const NativeIdentity);
                     ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
                 }
             }
