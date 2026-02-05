@@ -48,7 +48,7 @@ lazy_static! {
         Mutex::new(HashMap::new());
 }
 
-    #[package(ovh.devcraft.kwtransport)]
+    #[package(io.github.arosov.kwtransport)]
     pub struct KwTransport;
 
     impl KwTransport {
@@ -60,7 +60,7 @@ lazy_static! {
         }
     }
 
-    #[package(ovh.devcraft.kwtransport)]
+    #[package(io.github.arosov.kwtransport)]
     pub struct JniHelper;
 
     impl JniHelper {
@@ -105,7 +105,7 @@ lazy_static! {
         ) -> JniResult<()> {}
     }
 
-    #[package(ovh.devcraft.kwtransport)]
+    #[package(io.github.arosov.kwtransport)]
     #[derive(Debug, Clone)]
     struct NativeDnsResolver {
         resolver_id: i64,
@@ -142,7 +142,7 @@ lazy_static! {
         }
     }
 
-    #[package(ovh.devcraft.kwtransport)]
+    #[package(io.github.arosov.kwtransport)]
     pub struct Endpoint;
 
     impl Endpoint {
@@ -473,7 +473,7 @@ lazy_static! {
         }
     }
     
-    #[package(ovh.devcraft.kwtransport)]
+    #[package(io.github.arosov.kwtransport)]
     pub struct Connection;
 
     impl Connection {
@@ -684,7 +684,7 @@ lazy_static! {
         }
     }
 
-    #[package(ovh.devcraft.kwtransport)]
+    #[package(io.github.arosov.kwtransport)]
     pub struct StreamPairHelper;
 
     impl StreamPairHelper {
@@ -718,7 +718,7 @@ lazy_static! {
         }
     }
 
-    #[package(ovh.devcraft.kwtransport)]
+    #[package(io.github.arosov.kwtransport)]
     pub struct DatagramHelper;
 
     impl DatagramHelper {
@@ -736,7 +736,7 @@ lazy_static! {
         }
     }
 
-            #[package(ovh.devcraft.kwtransport)]
+            #[package(io.github.arosov.kwtransport)]
             pub struct SendStream;
 
             impl SendStream {
@@ -802,7 +802,7 @@ lazy_static! {
                 }
             }
 
-            #[package(ovh.devcraft.kwtransport)]
+            #[package(io.github.arosov.kwtransport)]
             pub struct RecvStream;
 
             impl RecvStream {
@@ -867,7 +867,7 @@ lazy_static! {
                 }
             }
 
-    #[package(ovh.devcraft.kwtransport)]
+    #[package(io.github.arosov.kwtransport)]
     pub struct Certificate;
 
     use wtransport::tls::{CertificateChain, PrivateKey, Certificate as WCertificate};

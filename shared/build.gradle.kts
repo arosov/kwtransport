@@ -225,7 +225,7 @@ tasks.withType<Test> {
         
         // Exclude stress test by default, but allow enabling via -PincludeStressTests
         if (!project.hasProperty("includeStressTests")) {
-            excludeTestsMatching("ovh.devcraft.kwtransport.FfiStressTest")
+            excludeTestsMatching("io.github.arosov.kwtransport.FfiStressTest")
         }
     }
 }
@@ -262,7 +262,7 @@ tasks.named("jsTest") {
 }
 
 android {
-    namespace = "ovh.devcraft.kwtransport.shared"
+    namespace = "io.github.arosov.kwtransport.shared"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

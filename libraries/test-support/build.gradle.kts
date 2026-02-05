@@ -26,7 +26,7 @@ kotlin {
 }
 
 android {
-    namespace = "ovh.devcraft.kwtransport.testsupport"
+    namespace = "io.github.arosov.kwtransport.testsupport"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()

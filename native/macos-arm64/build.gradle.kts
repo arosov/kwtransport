@@ -21,7 +21,7 @@ val finalVersion = if (!envVersion.isNullOrBlank()) {
 }
 
 project.version = finalVersion
-project.group = project.findProperty("GROUP")?.toString() ?: "ovh.devcraft"
+project.group = project.findProperty("GROUP")?.toString() ?: "io.github.arosov"
 
 mavenPublishing {
     coordinates(project.group.toString(), "kwtransport-jvm-macos-arm64", project.version.toString())

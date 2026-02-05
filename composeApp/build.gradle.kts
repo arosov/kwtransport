@@ -50,11 +50,11 @@ kotlin {
 }
 
 android {
-    namespace = "ovh.devcraft.kwtransport"
+    namespace = "io.github.arosov.kwtransport"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "ovh.devcraft.kwtransport"
+        applicationId = "io.github.arosov.kwtransport"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

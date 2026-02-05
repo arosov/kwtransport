@@ -3,16 +3,16 @@ import time
 import sys
 
 tests = [
-    "ovh.devcraft.kwtransport.CancellationTest",
-    "ovh.devcraft.kwtransport.ConnectionTest",
-    "ovh.devcraft.kwtransport.EndpointTest",
-    "ovh.devcraft.kwtransport.ErrorPropagationTest",
-    "ovh.devcraft.kwtransport.FfiStressTest",
-    "ovh.devcraft.kwtransport.IntegrationTest",
-    "ovh.devcraft.kwtransport.KwTransportJniTest",
-    "ovh.devcraft.kwtransport.LargeTransferTest",
-    "ovh.devcraft.kwtransport.LeakTest",
-    "ovh.devcraft.kwtransport.WTransportReproductionTest"
+    "io.github.arosov.kwtransport.CancellationTest",
+    "io.github.arosov.kwtransport.ConnectionTest",
+    "io.github.arosov.kwtransport.EndpointTest",
+    "io.github.arosov.kwtransport.ErrorPropagationTest",
+    "io.github.arosov.kwtransport.FfiStressTest",
+    "io.github.arosov.kwtransport.IntegrationTest",
+    "io.github.arosov.kwtransport.KwTransportJniTest",
+    "io.github.arosov.kwtransport.LargeTransferTest",
+    "io.github.arosov.kwtransport.LeakTest",
+    "io.github.arosov.kwtransport.WTransportReproductionTest"
 ]
 
 slow_tests = []

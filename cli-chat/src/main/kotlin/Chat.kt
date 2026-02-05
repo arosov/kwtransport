@@ -1,8 +1,8 @@
 import kotlinx.coroutines.*
-import ovh.devcraft.kwtransport.Certificate
-import ovh.devcraft.kwtransport.Connection
-import ovh.devcraft.kwtransport.Endpoint
-import ovh.devcraft.kwtransport.StreamPair
+import io.github.arosov.kwtransport.Certificate
+import io.github.arosov.kwtransport.Connection
+import io.github.arosov.kwtransport.Endpoint
+import io.github.arosov.kwtransport.StreamPair
 import kotlinx.coroutines.flow.collect
 import java.io.IOException
 

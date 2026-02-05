@@ -74,7 +74,7 @@ For other modules or specific targets, replace `:shared` and `:jvmTest` as per t
 
 ## API Overview
 
-The core of the `kwtransport` API resides in the `shared` module, primarily within the `ovh.devcraft.kwtransport` package. Key classes include:
+The core of the `kwtransport` API resides in the `shared` module, primarily within the `io.github.arosov.kwtransport` package. Key classes include:
 
 *   `Endpoint`: The entry point for creating client and server WebTransport endpoints.
 *   `Connection`: Represents an established WebTransport connection, allowing the opening and accepting of streams and sending/receiving datagrams.

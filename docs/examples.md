@@ -7,7 +7,7 @@ This document provides a series of practical examples demonstrating how to use t
 For local development and testing, you can easily generate a self-signed TLS certificate.
 
 ```kotlin
-import ovh.devcraft.kwtransport.Certificate
+import io.github.arosov.kwtransport.Certificate
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
@@ -24,8 +24,8 @@ fun main() = runBlocking {
 This example demonstrates how to start a server endpoint, listen for incoming connections, and handle a new session.
 
 ```kotlin
-import ovh.devcraft.kwtransport.Certificate
-import ovh.devcraft.kwtransport.Endpoint
+import io.github.arosov.kwtransport.Certificate
+import io.github.arosov.kwtransport.Endpoint
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -61,7 +61,7 @@ Here's how a client connects to the server. For this example, we'll trust the se
 **Note:** In a production environment, you should use `certificateHashes` to trust specific server certificates instead of `acceptAllCerts = true`.
 
 ```kotlin
-import ovh.devcraft.kwtransport.Endpoint
+import io.github.arosov.kwtransport.Endpoint
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
@@ -199,8 +199,8 @@ This example demonstrates a client opening two bidirectional streams simultaneou
 ```kotlin
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
-import ovh.devcraft.kwtransport.Connection
-import ovh.devcraft.kwtransport.StreamPair
+import io.github.arosov.kwtransport.Connection
+import io.github.arosov.kwtransport.StreamPair
 
 // Inside the server's incomingSessions().collect block, when a connection is established:
 launch {
@@ -248,7 +248,7 @@ launch {
 ```kotlin
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import ovh.devcraft.kwtransport.Connection
+import io.github.arosov.kwtransport.Connection
 
 // Inside the client's successful connection block:
 launch {

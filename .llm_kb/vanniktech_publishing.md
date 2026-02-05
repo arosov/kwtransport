@@ -25,7 +25,7 @@ plugins {
 
 mavenPublishing {
     // coordinates(group, artifactId, version)
-    coordinates("ovh.devcraft", "kwtransport", "0.1.0-SNAPSHOT")
+    coordinates("io.github.arosov", "kwtransport", "0.1.0-SNAPSHOT")
 
     pom {
         name.set("kwtransport")

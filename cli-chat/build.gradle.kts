@@ -3,7 +3,7 @@ plugins {
     application
 }
 
-group = "ovh.devcraft.kwtransport"
+group = "io.github.arosov.kwtransport"
 version = "1.0-SNAPSHOT"
 
 repositories {

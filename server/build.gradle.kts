@@ -4,10 +4,10 @@ plugins {
     application
 }
 
-group = "ovh.devcraft.kwtransport"
+group = "io.github.arosov.kwtransport"
 version = "1.0.0"
 application {
-    mainClass.set("ovh.devcraft.kwtransport.ApplicationKt")
+    mainClass.set("io.github.arosov.kwtransport.ApplicationKt")
     
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
@@ -26,7 +26,7 @@ fun getCurrentPlatform(): String {
 
 tasks.register<JavaExec>("runTestServer") {
     group = "verification"
-    mainClass.set("ovh.devcraft.kwtransport.TestEchoServerKt")
+    mainClass.set("io.github.arosov.kwtransport.TestEchoServerKt")
     classpath = sourceSets["main"].runtimeClasspath
     
     dependsOn(":shared:buildRust")

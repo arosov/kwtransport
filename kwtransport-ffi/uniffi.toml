@@ -1,2 +1,2 @@
 [bindings.kotlin]
-package_name = "ovh.devcraft.kwtransport.ffi"
+package_name = "io.github.arosov.kwtransport.ffi"
