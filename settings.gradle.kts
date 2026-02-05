@@ -39,3 +39,7 @@ include(":cli-chat")
 include(":native:linux-x64")
 
 include(":native:linux-arm64")
+
+include(":native:windows-x64")
+
+

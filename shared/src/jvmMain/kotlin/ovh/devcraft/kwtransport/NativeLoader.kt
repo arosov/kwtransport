@@ -31,7 +31,7 @@ internal object NativeLoader {
             else -> throw RuntimeException("Unsupported operating system: $os")
         }
 
-        val libName = "libkwtransport_ffi.$extension"
+        val libName = if (extension == "dll") "kwtransport_ffi.dll" else "libkwtransport_ffi.$extension"
         val resourcePath = "/native/$platform/$libName"
         
         val inputStream = javaClass.getResourceAsStream(resourcePath)
