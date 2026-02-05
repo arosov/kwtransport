@@ -1,0 +1,19 @@
+[package]
+name = "kwtransport-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+name = "kwtransport_ffi"
+
+[dependencies]
+uniffi = { version = "0.31", features = ["tokio", "cli"] }
+uniffi_bindgen = "0.31"
+uniffi_bindgen_kotlin_multiplatform = "0.1.0"
+wtransport = { path = "../wtransport/wtransport", features = ["dangerous-configuration"] }
+tokio = { version = "1", features = ["full"] }
+anyhow = "1.0"
+
+[build-dependencies]
+uniffi = { version = "0.31", features = ["build"] }

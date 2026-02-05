@@ -1,0 +1,11 @@
+namespace kwtransport_ffi {
+};
+
+interface Endpoint {
+    constructor();
+    [Async]
+    Connection connect(string url);
+};
+
+interface Connection {
+};
