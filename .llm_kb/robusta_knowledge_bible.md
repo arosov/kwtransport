@@ -1,5 +1,7 @@
 # The Robusta JNI Knowledge Bible
 
+**Source Documentation:** [https://docs.rs/robusta_jni/latest/robusta_jni/](https://docs.rs/robusta_jni/latest/robusta_jni/)
+
 **Robusta JNI** is a Rust library that facilitates Easy Interop between Rust and Java. It uses procedural macros to generate JNI-compatible code, handling the boilerplate of type conversions and method signatures.
 
 ## 1. Core Concept: The Bridge
