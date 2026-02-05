@@ -12,9 +12,9 @@ The current Kotlin `Endpoint.createClientEndpoint` exposes:
 - **Keep-Alive Interval (`keepAliveIntervalMillis`)**: Supported.
 - **IPv6 Dual Stack (`ipv6DualStackConfig`)**: Supported.
 - **Custom Transport Config (`quicConfig`)**: Supported (stream limits, flow control, buffer sizes).
+- **Advanced TLS Config (`with_custom_tls`)**: Supported (Client Authentication, Custom Root CAs).
 
 ### Missing Features:
-- **Advanced TLS Config (`with_custom_tls`)**: Passing a full `rustls::ClientConfig` (e.g., for client authentication or custom Root CA stores).
 - **Custom DNS Resolver (`dns_resolver`)**: Ability to plug in a custom DNS resolver (currently hardcoded to `TokioDnsResolver`). (Low Priority / High Complexity)
 - **Bind to Pre-existing Socket (`with_bind_socket`)**: Ability to pass an existing `UdpSocket`.
 
@@ -31,7 +31,7 @@ The current Kotlin `Endpoint.createServerEndpoint` exposes:
 
 ### Missing Features:
 - **Bind to Pre-existing Socket (`with_bind_socket`)**: Ability to pass an existing `UdpSocket`.
-- **Advanced TLS Config (`with_custom_tls`)**: Custom `rustls::ServerConfig`.
+- **Advanced TLS Config (`with_custom_tls`)**: Custom `rustls::ServerConfig`. (Low Priority as Server Identity is already configurable via `Certificate`)
 
 ## 3. Events & Observability
 
