@@ -1,6 +1,6 @@
 # Implementation Plan - Core KwTransport & Reliable Streams
 
-## Phase 1: Rust FFI Foundation
+## Phase 1: Rust FFI Foundation [checkpoint: edb7d34]
 This phase focuses on exposing the necessary `wtransport` functionality via UniFFI.
 
 - [x] Task: Define `uniffi` interface for `Endpoint` and `Connection` in Rust. [3593ec3]
