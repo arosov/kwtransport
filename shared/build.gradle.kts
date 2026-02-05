@@ -39,22 +39,50 @@ kotlin {
     }
 }
 
-val buildRustTask = tasks.register("buildRust") {
+val cargoDir = file("../kwtransport-ffi")
+
+val cleanRustTask = tasks.register("cleanRust") {
     doLast {
         exec {
-            workingDir("../kwtransport-ffi")
-            commandLine("cargo", "build")
+            workingDir = cargoDir
+            commandLine("cargo", "clean")
         }
+    }
+}
+
+tasks.named("clean") {
+    dependsOn(cleanRustTask)
+}
+
+val buildRustTask = tasks.register("buildRust") {
+    val release = project.hasProperty("rust.release")
+    
+    doLast {
+        val args = mutableListOf("cargo", "build")
+        if (release) args.add("--release")
+        
+        exec {
+            workingDir = cargoDir
+            commandLine(args)
+        }
+        
         val osName = System.getProperty("os.name").lowercase()
         val libName = when {
             osName.contains("win") -> "kwtransport_ffi.dll"
             osName.contains("mac") -> "libkwtransport_ffi.dylib"
             else -> "libkwtransport_ffi.so"
         }
-        val sourceFile = file("../kwtransport-ffi/target/debug/$libName")
+        
+        val targetType = if (release) "release" else "debug"
+        val sourceFile = cargoDir.resolve("target/$targetType/$libName")
         val targetDir = layout.buildDirectory.dir("rust-lib").get().asFile
         targetDir.mkdirs()
-        sourceFile.copyTo(File(targetDir, libName), overwrite = true)
+        
+        if (sourceFile.exists()) {
+             sourceFile.copyTo(File(targetDir, libName), overwrite = true)
+        } else {
+             throw GradleException("Rust build failed to produce $libName at $sourceFile")
+        }
     }
 }
 

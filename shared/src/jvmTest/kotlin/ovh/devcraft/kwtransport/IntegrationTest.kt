@@ -1,6 +1,7 @@
 package ovh.devcraft.kwtransport
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -11,25 +12,19 @@ import kotlin.time.Duration.Companion.milliseconds
 import java.net.ServerSocket
 
 class IntegrationTest {
-    // Increase pool size to handle more concurrent blocking JNI calls
     private val stressDispatcher = Executors.newFixedThreadPool(64).asCoroutineDispatcher()
 
     @Test
     fun `should perform full bidirectional round trip`() = runTest {
         val serverAddr = "127.0.0.1:4433"
-        val cert = withContext(Dispatchers.IO) {
-            Certificate.createSelfSigned("localhost", "127.0.0.1")
-        }
-        val serverEndpoint = withContext(Dispatchers.IO) {
-            Endpoint.createServerEndpoint(serverAddr, cert)
-        }
-        val clientEndpoint = withContext(Dispatchers.IO) {
-            Endpoint.createClientEndpoint(acceptAllCerts = true)
-        }
+        val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
+        val serverEndpoint = Endpoint.createServerEndpoint(serverAddr, cert)
+        val clientEndpoint = Endpoint.createClientEndpoint(acceptAllCerts = true)
 
         try {
             val serverJob = launch(Dispatchers.IO) {
-                serverEndpoint.acceptSession().use { conn ->
+                val conn = serverEndpoint.incomingSessions().first()
+                conn.use {
                     val pair = conn.acceptBi()
                     val buffer = ByteArray(1024)
                     val n = pair.recv.read(buffer)
@@ -41,15 +36,14 @@ class IntegrationTest {
 
             delay(200)
 
-            withContext(Dispatchers.IO) {
-                clientEndpoint.connect("https://$serverAddr/webtransport").use { conn ->
-                    val pair = conn.openBi()
-                    val data = "Hello World".toByteArray()
-                    pair.send.write(data)
-                    val buffer = ByteArray(1024)
-                    val n = pair.recv.read(buffer)
-                    assertContentEquals(data, buffer.copyOf(n))
-                }
+            clientEndpoint.connect("https://$serverAddr/webtransport").use { conn ->
+                val pair = conn.openBi()
+                val data = "Hello World".toByteArray()
+                pair.send.write(data)
+                
+                val buffer = ByteArray(1024)
+                val n = pair.recv.read(buffer)
+                assertContentEquals(data, buffer.copyOf(n))
             }
 
             serverJob.join()
@@ -64,23 +58,18 @@ class IntegrationTest {
     @Test
     fun `stress test with many concurrent streams`() = runTest(timeout = 60000L.milliseconds) {
         val serverAddr = "127.0.0.1:4434"
-        val concurrentStreams = 30 // Reduced slightly to ensure stability
+        val concurrentStreams = 30
         val messagesPerStream = 5
         val completedStreams = AtomicInteger(0)
 
-        val cert = withContext(Dispatchers.IO) {
-            Certificate.createSelfSigned("localhost", "127.0.0.1")
-        }
-        val serverEndpoint = withContext(Dispatchers.IO) {
-            Endpoint.createServerEndpoint(serverAddr, cert)
-        }
-        val clientEndpoint = withContext(Dispatchers.IO) {
-            Endpoint.createClientEndpoint(acceptAllCerts = true)
-        }
+        val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
+        val serverEndpoint = Endpoint.createServerEndpoint(serverAddr, cert)
+        val clientEndpoint = Endpoint.createClientEndpoint(acceptAllCerts = true)
 
         try {
             val serverJob = launch(stressDispatcher) {
-                serverEndpoint.acceptSession().use { conn ->
+                val conn = serverEndpoint.incomingSessions().first()
+                conn.use {
                     val jobs = (1..concurrentStreams).map {
                         launch(stressDispatcher) {
                             val pair = conn.acceptBi()
@@ -99,29 +88,27 @@ class IntegrationTest {
 
             delay(500)
 
-            withContext(stressDispatcher) {
-                clientEndpoint.connect("https://$serverAddr/webtransport").use { conn ->
-                    val streamJobs = (1..concurrentStreams).map { i ->
-                        launch(stressDispatcher) {
-                            val pair = conn.openBi()
-                            repeat(messagesPerStream) { m ->
-                                val data = "Stream $i Message $m".toByteArray()
-                                pair.send.write(data)
-                                val buffer = ByteArray(1024)
-                                val n = pair.recv.read(buffer)
-                                assertContentEquals(data, buffer.copyOf(n))
-                            }
-                            completedStreams.incrementAndGet()
+            clientEndpoint.connect("https://$serverAddr/webtransport").use { conn ->
+                val streamJobs = (1..concurrentStreams).map { i ->
+                    launch(stressDispatcher) {
+                        val pair = conn.openBi()
+                        repeat(messagesPerStream) { m ->
+                            val data = "Stream $i Message $m".toByteArray()
+                            pair.send.write(data)
+                            val buffer = ByteArray(1024)
+                            val n = pair.recv.read(buffer)
+                            assertContentEquals(data, buffer.copyOf(n))
                         }
+                        completedStreams.incrementAndGet()
                     }
-                    streamJobs.joinAll()
                 }
+                streamJobs.joinAll()
             }
 
             assertEquals(concurrentStreams, completedStreams.get())
             serverJob.cancelAndJoin()
         } finally {
-            withContext(stressDispatcher) {
+            withContext(Dispatchers.IO) {
                 serverEndpoint.close()
                 clientEndpoint.close()
             }
@@ -131,9 +118,6 @@ class IntegrationTest {
     @Test
     fun `leak check loop`() = runBlocking {
         val iterations = 50
-        
-        println("Starting leak check loop for $iterations iterations...")
-        
         repeat(iterations) { i ->
             val port = getFreePort()
             val serverAddr = "127.0.0.1:$port"
@@ -144,16 +128,15 @@ class IntegrationTest {
             
             val serverJob = launch(stressDispatcher) {
                 try {
-                    server.acceptSession().use { }
+                    val conn = server.incomingSessions().first()
+                    conn.close()
                 } catch (e: Exception) {}
             }
             
             delay(50)
             
             try {
-                withContext(stressDispatcher) {
-                    client.connect("https://$serverAddr/webtransport").use { }
-                }
+                client.connect("https://$serverAddr/webtransport").use { }
             } catch (e: Exception) {}
             
             serverJob.join()
@@ -162,12 +145,8 @@ class IntegrationTest {
             
             if (i % 10 == 0) {
                 System.gc()
-                val memory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
-                println("Iteration $i - JVM Memory: ${memory / 1024} KB")
             }
         }
-        
-        println("Leak check loop finished.")
     }
 
     private fun getFreePort(): Int {

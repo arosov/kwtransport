@@ -4,13 +4,14 @@ import ovh.devcraft.kwtransport.exceptions.ConnectingException
 import ovh.devcraft.kwtransport.exceptions.ConnectionException
 import ovh.devcraft.kwtransport.exceptions.ConnectingErrorType
 import ovh.devcraft.kwtransport.exceptions.KwTransportException
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ConnectionTest {
     @Test
-    fun testConnectInvalidUrl() {
+    fun testConnectInvalidUrl() = runTest {
         val endpoint = Endpoint.createClientEndpoint()
         val exception = assertFailsWith<ConnectingException> {
             endpoint.connect("invalid-url")
@@ -20,7 +21,7 @@ class ConnectionTest {
     }
 
     @Test
-    fun testConnectConnectionRefused() {
+    fun testConnectConnectionRefused() = runTest {
         // Use a short timeout to avoid hanging the test suite
         val endpoint = Endpoint.createClientEndpoint(acceptAllCerts = true, maxIdleTimeoutMillis = 500L)
         

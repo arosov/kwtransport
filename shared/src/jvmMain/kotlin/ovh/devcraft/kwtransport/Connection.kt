@@ -10,44 +10,60 @@ class Connection internal constructor(private var handle: Long) : AutoCloseable 
         private external fun destroy(handle: Long)
 
         @JvmStatic
-        private external fun openUni(handle: Long): Long
+        private external fun openUni(handle: Long, id: Long)
 
         @JvmStatic
-        private external fun openBi(handle: Long): StreamPair
+        private external fun openBi(handle: Long, id: Long)
 
         @JvmStatic
-        private external fun acceptUni(handle: Long): Long
+        private external fun acceptUni(handle: Long, id: Long)
 
         @JvmStatic
-        private external fun acceptBi(handle: Long): StreamPair
+        private external fun acceptBi(handle: Long, id: Long)
         
         @JvmStatic
         private external fun sendDatagram(handle: Long, data: ByteArray)
         
         @JvmStatic
-        private external fun receiveDatagram(handle: Long): ByteArray
+        private external fun receiveDatagram(handle: Long, id: Long)
     }
 
-    fun openUni(): SendStream {
+    suspend fun openUni(): SendStream {
         if (handle == 0L) throw IllegalStateException("Connection is closed")
-        val streamHandle = openUni(handle)
+        val (id, deferred) = AsyncRegistry.createDeferred()
+        openUni(handle, id)
+        val streamHandle = deferred.await()
         return SendStream(streamHandle)
     }
 
-    fun openBi(): StreamPair {
+    suspend fun openBi(): StreamPair {
         if (handle == 0L) throw IllegalStateException("Connection is closed")
-        return openBi(handle)
+        val (id, deferred) = AsyncRegistry.createDeferred()
+        openBi(handle, id)
+        val pairHandle = deferred.await()
+        val send = SendStream(StreamPairHelper.getSend(pairHandle))
+        val recv = RecvStream(StreamPairHelper.getRecv(pairHandle))
+        StreamPairHelper.destroy(pairHandle)
+        return StreamPair(send, recv)
     }
 
-    fun acceptUni(): RecvStream {
+    suspend fun acceptUni(): RecvStream {
         if (handle == 0L) throw IllegalStateException("Connection is closed")
-        val streamHandle = acceptUni(handle)
+        val (id, deferred) = AsyncRegistry.createDeferred()
+        acceptUni(handle, id)
+        val streamHandle = deferred.await()
         return RecvStream(streamHandle)
     }
 
-    fun acceptBi(): StreamPair {
+    suspend fun acceptBi(): StreamPair {
         if (handle == 0L) throw IllegalStateException("Connection is closed")
-        return acceptBi(handle)
+        val (id, deferred) = AsyncRegistry.createDeferred()
+        acceptBi(handle, id)
+        val pairHandle = deferred.await()
+        val send = SendStream(StreamPairHelper.getSend(pairHandle))
+        val recv = RecvStream(StreamPairHelper.getRecv(pairHandle))
+        StreamPairHelper.destroy(pairHandle)
+        return StreamPair(send, recv)
     }
 
     fun sendDatagram(data: ByteArray) {
@@ -55,9 +71,14 @@ class Connection internal constructor(private var handle: Long) : AutoCloseable 
         sendDatagram(handle, data)
     }
 
-    fun receiveDatagram(): ByteArray {
+    suspend fun receiveDatagram(): ByteArray {
         if (handle == 0L) throw IllegalStateException("Connection is closed")
-        return receiveDatagram(handle)
+        val (id, deferred) = AsyncRegistry.createDeferred()
+        receiveDatagram(handle, id)
+        val datagramHandle = deferred.await()
+        val data = DatagramHelper.getData(datagramHandle)
+        DatagramHelper.destroy(datagramHandle)
+        return data
     }
 
     override fun close() {

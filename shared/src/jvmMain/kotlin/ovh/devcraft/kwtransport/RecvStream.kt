@@ -7,15 +7,18 @@ class RecvStream internal constructor(private var handle: Long) : AutoCloseable 
         }
 
         @JvmStatic
-        private external fun read(handle: Long, buffer: ByteArray): Int
+        private external fun read(handle: Long, buffer: ByteArray, id: Long)
 
         @JvmStatic
         private external fun destroy(handle: Long)
     }
 
-    fun read(buffer: ByteArray): Int {
+    suspend fun read(buffer: ByteArray): Int {
         if (handle == 0L) throw IllegalStateException("Stream is closed")
-        return read(handle, buffer)
+        val (id, deferred) = AsyncRegistry.createDeferred()
+        read(handle, buffer, id)
+        val result = deferred.await()
+        return result.toInt()
     }
 
     override fun close() {

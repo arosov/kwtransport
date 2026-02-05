@@ -7,15 +7,17 @@ class SendStream internal constructor(private var handle: Long) : AutoCloseable 
         }
 
         @JvmStatic
-        private external fun write(handle: Long, data: ByteArray)
+        private external fun write(handle: Long, data: ByteArray, id: Long)
 
         @JvmStatic
         private external fun destroy(handle: Long)
     }
 
-    fun write(data: ByteArray) {
+    suspend fun write(data: ByteArray) {
         if (handle == 0L) throw IllegalStateException("Stream is closed")
-        write(handle, data)
+        val (id, deferred) = AsyncRegistry.createDeferred()
+        write(handle, data, id)
+        deferred.await()
     }
 
     override fun close() {
