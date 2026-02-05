@@ -3,7 +3,7 @@
 ## Phase 1: Rust FFI Foundation
 This phase focuses on exposing the necessary `wtransport` functionality via UniFFI.
 
-- [ ] Task: Define `uniffi` interface for `Endpoint` and `Connection` in Rust.
+- [x] Task: Define `uniffi` interface for `Endpoint` and `Connection` in Rust. [3593ec3]
     - [ ] Create `kwtransport-ffi/src/api.udl` (or use proc-macros if preferred, but UDL is standard for simple interfaces).
     - [ ] Implement `Endpoint` creation logic in Rust.
     - [ ] Implement `connect` method returning a `Connection`.
