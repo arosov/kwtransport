@@ -11,7 +11,7 @@ plugins {
     signing
 }
 
-val isCi = System.getenv("GITHUB_ACTIONS") == "true"
+val isCi = System.getenv("CI") == "true"
 
 signing {
     if (!isCi) {
