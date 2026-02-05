@@ -36,4 +36,4 @@ jobs:
         run: ./gradlew :shared:buildRust --no-configuration-cache
 
       - name: Run FFI Stress Test
-        run: ./gradlew :shared:cleanJvmTest :shared:jvmTest -PincludeStressTests --tests "ovh.devcraft.kwtransport.FfiStressTest" --no-configuration-cache
+        run: ./gradlew :shared:cleanJvmTest :shared:jvmTest -PincludeStressTests --tests "io.github.arosov.kwtransport.FfiStressTest" --no-configuration-cache

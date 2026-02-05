@@ -83,6 +83,13 @@ internal object AsyncRegistry {
             "CIDS_EXHAUSTED" -> ConnectingException(errorMessage, ConnectingErrorType.CIDS_EXHAUSTED)
             "INVALID_SERVER_NAME" -> ConnectingException(errorMessage, ConnectingErrorType.INVALID_SERVER_NAME)
             "INVALID_REMOTE_ADDRESS" -> ConnectingException(errorMessage, ConnectingErrorType.INVALID_REMOTE_ADDRESS)
+            
+            // Stream and Datagram errors that might come via onNotify
+            "NOT_CONNECTED" -> StreamOpeningException(errorMessage, StreamOpeningErrorType.NOT_CONNECTED)
+            "REFUSED" -> StreamOpeningException(errorMessage, StreamOpeningErrorType.REFUSED)
+            "UNSUPPORTED_BY_PEER" -> SendDatagramException(errorMessage, SendDatagramErrorType.UNSUPPORTED_BY_PEER)
+            "TOO_LARGE" -> SendDatagramException(errorMessage, SendDatagramErrorType.TOO_LARGE)
+            
             else -> {
                 println("AsyncRegistry: Received unknown error type from Rust: '$errorType' with message: '$errorMessage'")
                 KwTransportException(errorMessage)

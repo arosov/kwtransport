@@ -646,7 +646,7 @@ lazy_static! {
             let stats = conn.0.quic_connection().stats();
             let path_stats = stats.path;
 
-            let cls = env.find_class("ovh/devcraft/kwtransport/ConnectionStats")?;
+            let cls = env.find_class("io/github/arosov/kwtransport/ConnectionStats")?;
             let constructor = env.get_method_id(cls, "<init>", "(JJJJ)V")?;
             
             let obj = env.new_object_unchecked(cls, constructor, &[
