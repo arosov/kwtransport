@@ -27,6 +27,14 @@ mod jni {
     
     use wtransport::{ClientConfig, ServerConfig, Identity};
     use wtransport::config::Ipv6DualStackConfig;
+    use wtransport::tls::WEBTRANSPORT_ALPN;
+    use wtransport::tls::rustls;
+    use wtransport::tls::rustls::client::danger::ServerCertVerifier;
+    use wtransport::tls::rustls::RootCertStore;
+    use wtransport::tls::client::build_default_tls_config;
+    use wtransport::tls::build_native_cert_store;
+    use wtransport::tls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
+    use wtransport::tls::rustls::pki_types::pem::PemObject;
 
     #[package(ovh.devcraft.kwtransport)]
     pub struct KwTransport;
@@ -64,7 +72,9 @@ mod jni {
             certificate_hashes: Vec<String>,
             keep_alive_interval_millis: i64,
             ipv6_dual_stack_config: i32,
-            quic_config: Vec<i64>
+            quic_config: Vec<i64>,
+            client_cert_handle: i64,
+            root_cert_handles: Vec<i64>
         ) -> JniResult<i64> {
             let _ = JAVA_VM.set(env.get_java_vm().unwrap());
             let _guard = RUNTIME.enter();
@@ -87,8 +97,71 @@ mod jni {
                 SocketAddr::V4(_) => ClientConfig::builder().with_bind_address(addr),
                 SocketAddr::V6(addr_v6) => ClientConfig::builder().with_bind_address_v6(addr_v6, dual_stack_config),
             };
-            
-            let builder = if !certificate_hashes.is_empty() {
+
+            let builder = if client_cert_handle != 0 || !root_cert_handles.is_empty() {
+                let root_store = if root_cert_handles.is_empty() {
+                    Arc::new(build_native_cert_store())
+                } else {
+                    let mut store = RootCertStore::empty();
+                    for &h in &root_cert_handles {
+                        let native_identity = unsafe { Arc::from_raw(h as *const NativeIdentity) };
+                        let identity = native_identity.0.clone_identity();
+                        ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                        for cert in identity.certificate_chain().as_slice() {
+                            let _ = store.add(CertificateDer::from(cert.der().to_vec()));
+                        }
+                    }
+                    Arc::new(store)
+                };
+
+                let custom_verifier: Option<Arc<dyn ServerCertVerifier>> = if !certificate_hashes.is_empty() {
+                    let mut hashes = Vec::new();
+                    for h_str in certificate_hashes {
+                        match h_str.parse::<wtransport::tls::Sha256Digest>() {
+                            Ok(h) => hashes.push(h),
+                            Err(_) => {
+                                let _ = env.throw_new("java/lang/IllegalArgumentException", format!("Invalid certificate hash: {}", h_str));
+                                return Ok(0);
+                            }
+                        }
+                    }
+                    Some(Arc::new(wtransport::tls::client::ServerHashVerification::new(hashes)))
+                } else if accept_all_certs {
+                    Some(Arc::new(wtransport::tls::client::NoServerVerification::new()))
+                } else {
+                    None
+                };
+
+                let tls_config = if client_cert_handle != 0 {
+                    let native_identity = unsafe { Arc::from_raw(client_cert_handle as *const NativeIdentity) };
+                    let identity = native_identity.0.clone_identity();
+                    ACTIVE_OBJECT_COUNT.fetch_sub(1, Ordering::Relaxed);
+                    
+                    let certificates: Vec<CertificateDer> = identity
+                        .certificate_chain()
+                        .as_slice()
+                        .iter()
+                        .map(|cert| CertificateDer::from(cert.der().to_vec()))
+                        .collect();
+
+                    let priv_key_der = PrivateKeyDer::from_pem_slice(identity.private_key().to_secret_pem().as_bytes()).unwrap();
+
+                    let mut config = rustls::ClientConfig::builder()
+                        .with_root_certificates(root_store)
+                        .with_client_auth_cert(certificates, priv_key_der)
+                        .expect("valid client auth");
+
+                    if let Some(verifier) = custom_verifier {
+                        config.dangerous().set_certificate_verifier(verifier);
+                    }
+                    config.alpn_protocols = [WEBTRANSPORT_ALPN.to_vec()].to_vec();
+                    config
+                } else {
+                    build_default_tls_config(root_store, custom_verifier)
+                };
+
+                builder.with_custom_tls(tls_config)
+            } else if !certificate_hashes.is_empty() {
                 let mut hashes = Vec::new();
                 for h_str in certificate_hashes {
                     match h_str.parse::<wtransport::tls::Sha256Digest>() {
@@ -724,6 +797,14 @@ mod jni {
              };
              std::mem::forget(identity);
              res
+        }
+
+        pub extern "jni" fn copy(_env: &JNIEnv, handle: i64) -> i64 {
+             let identity = unsafe { Arc::from_raw(handle as *const NativeIdentity) };
+             let identity_clone = identity.0.clone_identity();
+             std::mem::forget(identity);
+             ACTIVE_OBJECT_COUNT.fetch_add(1, Ordering::Relaxed);
+             Arc::into_raw(Arc::new(NativeIdentity(identity_clone))) as i64
         }
 
         pub extern "jni" fn destroy(handle: i64) {

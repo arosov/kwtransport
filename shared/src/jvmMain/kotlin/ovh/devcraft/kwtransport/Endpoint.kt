@@ -21,7 +21,9 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
             certificateHashes: List<String>,
             keepAliveIntervalMillis: Long,
             ipv6DualStackConfig: Int,
-            quicConfig: List<Long>
+            quicConfig: List<Long>,
+            clientCertHandle: Long,
+            rootCertHandles: List<Long>
         ): Long
 
         @JvmStatic
@@ -62,8 +64,13 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
             certificateHashes: List<String>? = null,
             keepAliveIntervalMillis: Long = 0L,
             ipv6DualStackConfig: Int = IPV6_DUAL_STACK_DEFAULT,
-            quicConfig: QuicConfig? = null
+            quicConfig: QuicConfig? = null,
+            clientCertificate: Certificate? = null,
+            rootCerts: List<Certificate>? = null
         ): Endpoint {
+            val certHandle = clientCertificate?.handle?.getAndSet(0L) ?: 0L
+            val rootHandles = rootCerts?.map { it.handle.getAndSet(0L) } ?: emptyList()
+            
             val handle = createClient(
                 bindAddr, 
                 acceptAllCerts, 
@@ -71,7 +78,9 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
                 certificateHashes ?: emptyList(),
                 keepAliveIntervalMillis,
                 ipv6DualStackConfig,
-                quicConfig?.toLongList() ?: emptyList()
+                quicConfig?.toLongList() ?: emptyList(),
+                certHandle,
+                rootHandles
             )
             return Endpoint(handle)
         }

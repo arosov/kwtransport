@@ -17,6 +17,9 @@ class Certificate internal constructor(handle: Long) : AutoCloseable {
         private external fun getHash(handle: Long): String
 
         @JvmStatic
+        private external fun copy(handle: Long): Long
+
+        @JvmStatic
         private external fun destroy(handle: Long)
 
         fun createSelfSigned(vararg sans: String): Certificate {
@@ -30,6 +33,13 @@ class Certificate internal constructor(handle: Long) : AutoCloseable {
         val h = handle.get()
         if (h == 0L) throw IllegalStateException("Certificate is closed")
         return getHash(h)
+    }
+
+    fun copy(): Certificate {
+        val h = handle.get()
+        if (h == 0L) throw IllegalStateException("Certificate is closed")
+        val newHandle = copy(h)
+        return Certificate(newHandle)
     }
 
     override fun close() {
