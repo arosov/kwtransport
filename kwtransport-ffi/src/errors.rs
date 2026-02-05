@@ -18,7 +18,7 @@ pub fn map_conn_err(error: ConnectionError) -> (String, String, i64, String) {
         ConnectionError::LocalH3Error(_) => ("LOCAL_H3_ERROR", "Local H3 error", 0, "".to_string()),
         ConnectionError::TimedOut => ("TIMED_OUT", "Timed out", 0, "".to_string()),
         ConnectionError::QuicProto(_) => ("QUIC_PROTO", "QUIC protocol error", 0, "".to_string()),
-        ConnectionError::CidsExhausted => ("CIDS_EHAUSTED", "CIDs exhausted", 0, "".to_string()),
+        ConnectionError::CidsExhausted => ("CIDS_EXHAUSTED", "CIDs exhausted", 0, "".to_string()),
     };
     (ex_type.to_string(), msg.to_string(), code, context)
 }
@@ -32,7 +32,7 @@ pub fn map_connecting_err(error: ConnectingError) -> (String, String, i64, Strin
         ConnectingError::SessionRejected => ("SESSION_REJECTED".to_string(), "Session rejected".to_string(), 0, "".to_string()),
         ConnectingError::ReservedHeader(s) => ("RESERVED_HEADER".to_string(), s, 0, "".to_string()),
         ConnectingError::EndpointStopping => ("ENDPOINT_STOPPING".to_string(), "Endpoint stopping".to_string(), 0, "".to_string()),
-        ConnectingError::CidsExhausted => ("CIDS_EHAUSTED".to_string(), "CIDs exhausted".to_string(), 0, "".to_string()),
+        ConnectingError::CidsExhausted => ("CIDS_EXHAUSTED".to_string(), "CIDs exhausted".to_string(), 0, "".to_string()),
         ConnectingError::InvalidServerName(s) => ("INVALID_SERVER_NAME".to_string(), s, 0, "".to_string()),
         ConnectingError::InvalidRemoteAddress(a) => ("INVALID_REMOTE_ADDRESS".to_string(), a.to_string(), 0, "".to_string()),
     }

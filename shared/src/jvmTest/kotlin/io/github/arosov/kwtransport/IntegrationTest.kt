@@ -11,39 +11,61 @@ class IntegrationTest {
 
     private val stressDispatcher = Dispatchers.IO.limitedParallelism(16)
 
+    private fun getPort(endpoint: Endpoint): Int {
+        val addr = endpoint.localAddr
+        return addr.substringAfterLast(':').toInt()
+    }
+
     @Test
     fun `should perform full bidirectional round trip`() = runBlocking {
         val cert = Certificate.createSelfSigned("localhost", "127.0.0.1")
         val hash = cert.getHash()
 
         val serverEndpoint = Endpoint.createServerEndpoint("127.0.0.1:0", cert)
-        val serverAddr = serverEndpoint.localAddr
-        val url = "https://$serverAddr/test"
+        val port = getPort(serverEndpoint)
+        val url = "https://127.0.0.1:$port/test"
 
         val message = "Hello WebTransport"
         
         val serverJob = launch(stressDispatcher) {
             serverEndpoint.incomingSessions().collect { connection ->
-                val pair = connection.acceptBi()
-                val buffer = ByteArray(1024)
-                val n = pair.recv.read(buffer)
-                val received = buffer.decodeToString(0, n)
-                pair.send.write(received)
-                pair.send.close()
-                connection.close()
+                println("Server: Accepted session")
+                try {
+                    val pair = connection.acceptBi()
+                    println("Server: Accepted Bi stream")
+                    val buffer = ByteArray(1024)
+                    val n = pair.recv.read(buffer)
+                    println("Server: Read $n bytes")
+                    val received = buffer.decodeToString(0, n)
+                    pair.send.write(received)
+                    pair.send.close()
+                    println("Server: Echoed data and closed stream")
+                } catch (e: Exception) {
+                    println("Server error: ${e.message}")
+                } finally {
+                    connection.close()
+                }
             }
         }
+
+        // Give server a moment to start
+        delay(100)
 
         val clientEndpoint = Endpoint.createClientEndpoint(
             certificateHashes = listOf(hash)
         )
 
+        println("Client: Connecting to $url")
         val connection = clientEndpoint.connect(url)
+        println("Client: Connected")
         val pair = connection.openBi()
+        println("Client: Opened Bi stream")
         pair.send.write(message)
+        println("Client: Sent data")
         
         val buffer = ByteArray(1024)
         val n = pair.recv.read(buffer)
+        println("Client: Read $n bytes")
         val response = buffer.decodeToString(0, n)
 
         assertEquals(message, response)
@@ -71,8 +93,8 @@ class IntegrationTest {
             certificate = cert,
             quicConfig = quicConfig
         )
-        val serverAddr = serverEndpoint.localAddr
-        val url = "https://$serverAddr/stress"
+        val port = getPort(serverEndpoint)
+        val url = "https://127.0.0.1:$port/stress"
 
         val completedStreams = AtomicInteger(0)
 
@@ -142,7 +164,7 @@ class IntegrationTest {
         repeat(iterations) { i ->
             val cert = Certificate.createSelfSigned("localhost")
             val server = Endpoint.createServerEndpoint("127.0.0.1:0", cert)
-            val serverAddr = server.localAddr
+            val port = getPort(server)
             val client = Endpoint.createClientEndpoint(acceptAllCerts = true, maxIdleTimeoutMillis = 1000)
             
             val serverJob = launch(stressDispatcher) {
@@ -155,7 +177,7 @@ class IntegrationTest {
             delay(50)
             
             try {
-                client.connect("https://$serverAddr/webtransport").use { }
+                client.connect("https://127.0.0.1:$port/webtransport").use { }
             } catch (e: Exception) {}
             
             serverJob.join()

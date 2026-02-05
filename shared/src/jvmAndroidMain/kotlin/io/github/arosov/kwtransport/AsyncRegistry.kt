@@ -80,11 +80,11 @@ internal object AsyncRegistry {
             "SESSION_REJECTED" -> ConnectingException(errorMessage, ConnectingErrorType.SESSION_REJECTED)
             "RESERVED_HEADER" -> ConnectingException(errorMessage, ConnectingErrorType.RESERVED_HEADER)
             "ENDPOINT_STOPPING" -> ConnectingException(errorMessage, ConnectingErrorType.ENDPOINT_STOPPING)
-            "CIDS_EHAUSTED" -> ConnectingException(errorMessage, ConnectingErrorType.CIDS_EXHAUSTED)
+            "CIDS_EXHAUSTED" -> ConnectingException(errorMessage, ConnectingErrorType.CIDS_EXHAUSTED)
             "INVALID_SERVER_NAME" -> ConnectingException(errorMessage, ConnectingErrorType.INVALID_SERVER_NAME)
             "INVALID_REMOTE_ADDRESS" -> ConnectingException(errorMessage, ConnectingErrorType.INVALID_REMOTE_ADDRESS)
             else -> {
-                println("Unknown error type from Rust: type=$errorType, message=$errorMessage, code=$errorCode, context=$errorContext")
+                println("AsyncRegistry: Received unknown error type from Rust: '$errorType' with message: '$errorMessage'")
                 KwTransportException(errorMessage)
             }
         }

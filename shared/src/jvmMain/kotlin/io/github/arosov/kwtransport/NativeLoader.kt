@@ -34,8 +34,15 @@ internal object NativeLoader {
         val libName = if (extension == "dll") "kwtransport_ffi.dll" else "libkwtransport_ffi.$extension"
         val resourcePath = "/native/$platform/$libName"
         
-        val inputStream = javaClass.getResourceAsStream(resourcePath)
-            ?: throw RuntimeException("Native library not found in classpath: $resourcePath. Make sure you have the platform-specific dependency for $platform added to your project.")
+        println("NativeLoader: Attempting to load native library for platform=$platform from resource=$resourcePath")
+        
+        val classLoader = Thread.currentThread().contextClassLoader ?: javaClass.classLoader
+        val inputStream = classLoader.getResourceAsStream(resourcePath.removePrefix("/"))
+            ?: javaClass.getResourceAsStream(resourcePath)
+            ?: run {
+                println("NativeLoader ERROR: Resource not found: $resourcePath")
+                throw RuntimeException("Native library not found in classpath: $resourcePath. ClassLoader: $classLoader")
+            }
 
         val tempDir = Files.createTempDirectory("kwtransport-native").toFile()
         tempDir.deleteOnExit()
