@@ -34,6 +34,7 @@ tasks.register<JavaExec>("runTestServer") {
 
 dependencies {
     implementation(projects.shared)
+    implementation(project(":libraries:test-support"))
     
     // Depend on the native artifact of the current host
     val platform = getCurrentPlatform()

@@ -36,7 +36,11 @@ include(":shared")
 
 include(":cli-chat")
 
+include(":libraries:test-support")
+
 include(":native:linux-x64")
+
+
 
 include(":native:linux-arm64")
 
