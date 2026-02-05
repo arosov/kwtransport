@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.atomic.AtomicLong
 
-class Endpoint internal constructor(handle: Long) : AutoCloseable {
+actual class Endpoint internal constructor(handle: Long) : Closeable {
     private val handle = AtomicLong(handle)
     companion object {
         init {
@@ -126,7 +126,7 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
             return getLocalAddr(h)
         }
 
-    suspend fun connect(url: String): Connection {
+    actual suspend fun connect(url: String): Connection {
         val h = handle.get()
         if (h == 0L) throw IllegalStateException("Endpoint is closed")
         
@@ -137,7 +137,7 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
         return Connection(connHandle)
     }
 
-    fun incomingSessions(): Flow<Connection> = callbackFlow<Long> {
+    actual fun incomingSessions(): Flow<Connection> = callbackFlow<Long> {
         val h = handle.get()
         if (h == 0L) throw IllegalStateException("Endpoint is closed")
         
@@ -153,7 +153,7 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
         }
     }.map { handle -> Connection(handle) }
 
-    override fun close() {
+    actual override fun close() {
         val h = handle.getAndSet(0L)
         if (h != 0L) {
             destroy(h)
@@ -161,4 +161,12 @@ class Endpoint internal constructor(handle: Long) : AutoCloseable {
     }
     
     fun isClosed(): Boolean = handle.get() == 0L
+}
+
+actual fun createClientEndpoint(): Endpoint {
+    return Endpoint.createClientEndpoint()
+}
+
+actual fun createServerEndpoint(bindAddr: String, certificate: Certificate): Endpoint {
+    return Endpoint.createServerEndpoint(bindAddr, certificate)
 }

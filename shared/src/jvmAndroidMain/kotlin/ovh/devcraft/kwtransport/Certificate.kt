@@ -2,7 +2,7 @@ package ovh.devcraft.kwtransport
 
 import java.util.concurrent.atomic.AtomicLong
 
-class Certificate internal constructor(handle: Long) : AutoCloseable {
+actual class Certificate internal constructor(handle: Long) : Closeable {
     internal val handle = AtomicLong(handle)
 
     companion object {
@@ -21,7 +21,7 @@ class Certificate internal constructor(handle: Long) : AutoCloseable {
 
         @JvmStatic
         private external fun destroy(handle: Long)
-
+        
         fun createSelfSigned(vararg sans: String): Certificate {
             val handle = selfSigned(sans.toList())
             if (handle == 0L) throw RuntimeException("Failed to create self-signed certificate")
@@ -29,7 +29,7 @@ class Certificate internal constructor(handle: Long) : AutoCloseable {
         }
     }
 
-    fun getHash(): String {
+    actual fun getHash(): String {
         val h = handle.get()
         if (h == 0L) throw IllegalStateException("Certificate is closed")
         return getHash(h)
@@ -42,10 +42,14 @@ class Certificate internal constructor(handle: Long) : AutoCloseable {
         return Certificate(newHandle)
     }
 
-    override fun close() {
+    actual override fun close() {
         val h = handle.getAndSet(0L)
         if (h != 0L) {
             destroy(h)
         }
     }
+}
+
+actual fun createSelfSignedCertificate(vararg sans: String): Certificate {
+    return Certificate.createSelfSigned(*sans)
 }

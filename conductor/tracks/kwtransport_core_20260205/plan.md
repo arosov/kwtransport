@@ -1,13 +1,12 @@
 # Implementation Plan - Core KwTransport & Reliable Streams
 
 ## Phase 1: Rust FFI Foundation [checkpoint: edb7d34]
-This phase focuses on exposing the necessary `wtransport` functionality via UniFFI.
+This phase focuses on exposing the necessary `wtransport` functionality via Robusta JNI.
 
-- [x] Task: Define `uniffi` interface for `Endpoint` and `Connection` in Rust. [3593ec3]
-    - [ ] Create `kwtransport-ffi/src/api.udl` (or use proc-macros if preferred, but UDL is standard for simple interfaces).
-    - [ ] Implement `Endpoint` creation logic in Rust.
+- [x] Task: Define JNI interface for `Endpoint` and `Connection` in Rust. [3593ec3]
+    - [ ] Implement `Endpoint` creation logic in Rust using Robusta.
     - [ ] Implement `connect` method returning a `Connection`.
-- [x] Task: Define `uniffi` interface for Reliable Streams. [3ad56c4]
+- [x] Task: Define JNI interface for Reliable Streams. [3ad56c4]
     - [ ] Add `open_uni_stream` and `accept_uni_stream` to `Connection`.
     - [ ] Add `open_bi_stream` and `accept_bi_stream` to `Connection`.
     - [ ] Define `SendStream` and `RecvStream` interfaces with `read` and `write` methods.
@@ -17,11 +16,11 @@ This phase focuses on exposing the necessary `wtransport` functionality via UniF
 - [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
 
 ## Phase 2: Kotlin Wrapper Structure
-This phase focuses on creating the Kotlin-side structure that consumes the generated FFI code.
+This phase focuses on creating the Kotlin-side structure that consumes the JNI code.
 
-- [~] Task: Set up Kotlin Shared Module for FFI.
-    - [ ] Ensure `uniffi` Gradle plugin is correctly configured in `shared/build.gradle.kts`.
-    - [ ] Verify FFI bindings generation.
+- [~] Task: Set up Kotlin Shared Module for JNI.
+    - [ ] Ensure Rust compilation is correctly configured in `shared/build.gradle.kts`.
+    - [ ] Verify JNI calls work.
 - [ ] Task: Implement `KwTransport` entry point.
     - [ ] Create `KwTransport` object/class.
     - [ ] Add initialization logic.

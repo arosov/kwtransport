@@ -2,13 +2,12 @@ package ovh.devcraft.kwtransport
 
 import kotlinx.coroutines.await
 import ovh.devcraft.kwtransport.exceptions.KwTransportException
-import kotlin.js.ExperimentalWasmJsInterop
+import org.khronos.webgl.Uint8Array
 
-@OptIn(ExperimentalWasmJsInterop::class)
 actual class SendStream internal constructor(private val writer: JsWritableStreamDefaultWriter) : Closeable {
     actual suspend fun write(data: ByteArray) {
         try {
-            writer.write(data.toJsUint8Array()).await()
+            writer.write(data.toUint8Array()).await()
         } catch (e: Throwable) {
             throw KwTransportException("Failed to write to stream: ${e.message}")
         }
@@ -28,4 +27,8 @@ actual class SendStream internal constructor(private val writer: JsWritableStrea
     actual override fun close() {
         writer.close()
     }
+}
+
+private fun ByteArray.toUint8Array(): Uint8Array {
+    return Uint8Array(this.asDynamic().buffer as org.khronos.webgl.ArrayBuffer, this.asDynamic().byteOffset as Int, this.size)
 }

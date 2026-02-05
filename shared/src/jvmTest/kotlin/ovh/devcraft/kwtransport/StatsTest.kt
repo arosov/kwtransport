@@ -49,8 +49,8 @@ class StatsTest {
             assertNotNull(stats)
             
             // Basic sanity check
-            assertTrue(stats.rttMs >= 0)
-            assertTrue(stats.sentPackets >= 0)
+            assertTrue(stats.rtt >= 0)
+            assertTrue(stats.bytesSent >= 0)
             
             connection.close()
             client.close()

@@ -1,8 +1,8 @@
 package ovh.devcraft.kwtransport
 
 expect class Certificate : Closeable {
-    companion object {
-        fun createSelfSigned(vararg sans: String): Certificate
-    }
     fun getHash(): String
+    override fun close()
 }
+
+expect fun createSelfSignedCertificate(vararg sans: String): Certificate

@@ -4,18 +4,15 @@ import kotlinx.coroutines.await
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import ovh.devcraft.kwtransport.exceptions.KwTransportException
-import kotlin.js.ExperimentalWasmJsInterop
 
-@OptIn(ExperimentalWasmJsInterop::class)
 actual class Connection internal constructor(private val jsTransport: JsWebTransport) : Closeable {
     actual suspend fun openUni(): SendStream {
-        throw UnsupportedOperationException("WASM target does not yet support unidirectional streams.")
+        throw UnsupportedOperationException("JS target does not yet support unidirectional streams.")
     }
 
     actual suspend fun openBi(): StreamPair {
         try {
-            val jsStreamPromise = jsTransport.createBidirectionalStream()
-            val jsStream: JsWebTransportBidirectionalStream = jsStreamPromise.await()
+            val jsStream = jsTransport.createBidirectionalStream().await()
             val recvReader = jsStream.readable.getReader()
             val sendWriter = jsStream.writable.getWriter()
             return StreamPair(SendStream(sendWriter), RecvStream(recvReader))
@@ -25,15 +22,15 @@ actual class Connection internal constructor(private val jsTransport: JsWebTrans
     }
 
     actual suspend fun acceptUni(): RecvStream {
-        throw UnsupportedOperationException("WASM target does not yet support unidirectional streams.")
+        throw UnsupportedOperationException("JS target does not yet support unidirectional streams.")
     }
 
     actual suspend fun acceptBi(): StreamPair {
         val reader = jsTransport.incomingBidirectionalStreams.getReader()
         try {
-            val result: JsReadResult = reader.read().await()
+            val result = reader.read().await()
             if (result.done) throw KwTransportException("No incoming streams available.")
-            val jsStream = result.value!!.unsafeCast<JsWebTransportBidirectionalStream>()
+            val jsStream = result.value.asDynamic() as JsWebTransportBidirectionalStream
             val recvReader = jsStream.readable.getReader()
             val sendWriter = jsStream.writable.getWriter()
             return StreamPair(SendStream(sendWriter), RecvStream(recvReader))
@@ -43,11 +40,11 @@ actual class Connection internal constructor(private val jsTransport: JsWebTrans
     }
 
     actual fun sendDatagram(data: ByteArray) {
-        throw UnsupportedOperationException("WASM target does not yet support datagrams.")
+        throw UnsupportedOperationException("JS target does not yet support datagrams.")
     }
 
     actual suspend fun receiveDatagram(): ByteArray {
-        throw UnsupportedOperationException("WASM target does not yet support datagrams.")
+        throw UnsupportedOperationException("JS target does not yet support datagrams.")
     }
 
     actual fun getStats(): ConnectionStats {

@@ -33,9 +33,12 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
-        jvmMain {
+        val jvmAndroidMain by creating {
+            dependsOn(commonMain.get())
             resources.srcDir(layout.buildDirectory.dir("rust-lib"))
         }
+        jvmMain.get().dependsOn(jvmAndroidMain)
+        androidMain.get().dependsOn(jvmAndroidMain)
     }
 }
 

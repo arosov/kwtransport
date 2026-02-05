@@ -11,4 +11,5 @@ expect class Connection : Closeable {
     val maxDatagramSize: Long?
     fun close(code: Long = 0, reason: String = "")
     fun isClosed(): Boolean
+    override fun close()
 }

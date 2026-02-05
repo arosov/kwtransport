@@ -1,9 +1,8 @@
 package ovh.devcraft.kwtransport
 
-import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicLong
 
-class SendStream internal constructor(handle: Long) : AutoCloseable {
+actual class SendStream internal constructor(handle: Long) : Closeable {
     private val handle = AtomicLong(handle)
     companion object {
         init {
@@ -23,7 +22,7 @@ class SendStream internal constructor(handle: Long) : AutoCloseable {
         private external fun destroy(handle: Long)
     }
 
-    suspend fun write(data: ByteArray) {
+    actual suspend fun write(data: ByteArray) {
         val h = handle.get()
         if (h == 0L) throw IllegalStateException("Stream is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
@@ -31,11 +30,11 @@ class SendStream internal constructor(handle: Long) : AutoCloseable {
         deferred.await()
     }
 
-    suspend fun write(data: String, charset: Charset = Charsets.UTF_8) {
-        write(data.toByteArray(charset))
+    actual suspend fun write(data: String) {
+        write(data.encodeToByteArray())
     }
 
-    suspend fun setPriority(priority: Int) {
+    actual suspend fun setPriority(priority: Int) {
         val h = handle.get()
         if (h == 0L) throw IllegalStateException("Stream is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
@@ -43,7 +42,7 @@ class SendStream internal constructor(handle: Long) : AutoCloseable {
         deferred.await()
     }
 
-    suspend fun getPriority(): Int {
+    actual suspend fun getPriority(): Int {
         val h = handle.get()
         if (h == 0L) throw IllegalStateException("Stream is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
@@ -51,7 +50,7 @@ class SendStream internal constructor(handle: Long) : AutoCloseable {
         return deferred.await().toInt()
     }
 
-    override fun close() {
+    actual override fun close() {
         val h = handle.getAndSet(0L)
         if (h != 0L) {
             destroy(h)

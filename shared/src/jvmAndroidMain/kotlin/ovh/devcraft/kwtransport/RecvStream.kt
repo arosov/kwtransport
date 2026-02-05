@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.util.concurrent.atomic.AtomicLong
 
-class RecvStream internal constructor(handle: Long) : AutoCloseable {
+actual class RecvStream internal constructor(handle: Long) : Closeable {
     private val handle = AtomicLong(handle)
     companion object {
         init {
@@ -18,7 +18,7 @@ class RecvStream internal constructor(handle: Long) : AutoCloseable {
         private external fun destroy(handle: Long)
     }
 
-    suspend fun read(buffer: ByteArray): Int {
+    actual suspend fun read(buffer: ByteArray): Int {
         val h = handle.get()
         if (h == 0L) throw IllegalStateException("Stream is closed")
         val (id, deferred) = AsyncRegistry.createDeferred()
@@ -27,7 +27,7 @@ class RecvStream internal constructor(handle: Long) : AutoCloseable {
         return result.toInt()
     }
 
-    fun chunks(chunkSize: Int = 8192): Flow<ByteArray> {
+    actual fun chunks(chunkSize: Int): Flow<ByteArray> {
         require(chunkSize > 0) { "chunkSize must be positive" }
         return flow {
             val buffer = ByteArray(chunkSize)
@@ -41,7 +41,7 @@ class RecvStream internal constructor(handle: Long) : AutoCloseable {
         }
     }
 
-    override fun close() {
+    actual override fun close() {
         val h = handle.getAndSet(0L)
         if (h != 0L) {
             destroy(h)

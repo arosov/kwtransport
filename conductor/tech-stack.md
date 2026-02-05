@@ -10,8 +10,8 @@
 - **WASM (Web):** Targeting modern web browsers via Kotlin/Wasm.
 
 ## FFI Layer (Foreign Function Interface)
-- **UniFFI:** Used to automatically generate the bridge between Kotlin and Rust.
-    - **JNI Backend:** Specifically configured to use JNI (Java Native Interface) for JVM-based targets (Android and JVM) to ensure maximum performance and avoid the overhead of JNA.
+- **Robusta:** Used to implement the high-performance JNI bridge between Kotlin and Rust.
+    - **JNI Backend:** Specifically chosen to ensure maximum performance and avoid the overhead of JNA (which UniFFI uses by default). UniFFI was initially considered but discarded due to this performance requirement.
 
 ## Core Libraries & Frameworks
 - **wtransport:** The underlying Rust implementation of the WebTransport protocol.

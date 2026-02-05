@@ -1,11 +1,11 @@
 # Specification: Core KwTransport & Reliable Streams
 
 ## Goal
-Establish the foundational `KwTransport` class structure and implement support for reliable streams (uni-directional and bi-directional) using UniFFI to bridge to the underlying Rust `wtransport` implementation.
+Establish the foundational `KwTransport` class structure and implement support for reliable streams (uni-directional and bi-directional). Initially, UniFFI was considered to bridge to the underlying Rust `wtransport` implementation, but it was discarded in favor of a direct Robusta JNI implementation to meet performance requirements.
 
 ## Core Components
 1.  **Rust Backend (kwtransport-ffi):**
-    -   Expose `Endpoint` creation and management via UniFFI.
+    -   Expose `Endpoint` creation and management via Robusta JNI.
     -   Expose methods to open and accept reliable streams.
     -   Expose stream reading and writing operations.
 2.  **Kotlin Wrapper (Shared Module):**
