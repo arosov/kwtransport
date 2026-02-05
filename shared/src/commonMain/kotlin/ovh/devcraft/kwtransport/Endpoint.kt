@@ -8,7 +8,9 @@ expect class Endpoint : Closeable {
     override fun close()
 }
 
-expect fun createClientEndpoint(): Endpoint
+expect fun createClientEndpoint(
+    certificateHashes: List<String> = emptyList()
+): Endpoint
 expect fun createServerEndpoint(
     bindAddr: String,
     certificate: Certificate

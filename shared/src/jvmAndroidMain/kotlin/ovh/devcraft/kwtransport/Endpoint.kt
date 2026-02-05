@@ -163,8 +163,10 @@ actual class Endpoint internal constructor(handle: Long) : Closeable {
     fun isClosed(): Boolean = handle.get() == 0L
 }
 
-actual fun createClientEndpoint(): Endpoint {
-    return Endpoint.createClientEndpoint()
+actual fun createClientEndpoint(
+    certificateHashes: List<String>
+): Endpoint {
+    return Endpoint.createClientEndpoint(certificateHashes = certificateHashes)
 }
 
 actual fun createServerEndpoint(bindAddr: String, certificate: Certificate): Endpoint {

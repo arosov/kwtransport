@@ -5,9 +5,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.await
 
-actual class Endpoint internal constructor() : Closeable {
+actual class Endpoint internal constructor(
+    private val certificateHashes: List<String> = emptyList()
+) : Closeable {
     actual suspend fun connect(url: String): Connection {
         try {
+            // Implementation of options passing will follow in next tasks
             val jsTransport = JsWebTransport(url)
             jsTransport.ready.await()
             return Connection(jsTransport)
@@ -23,8 +26,10 @@ actual class Endpoint internal constructor() : Closeable {
     }
 }
 
-actual fun createClientEndpoint(): Endpoint {
-    return Endpoint()
+actual fun createClientEndpoint(
+    certificateHashes: List<String>
+): Endpoint {
+    return Endpoint(certificateHashes)
 }
 
 actual fun createServerEndpoint(

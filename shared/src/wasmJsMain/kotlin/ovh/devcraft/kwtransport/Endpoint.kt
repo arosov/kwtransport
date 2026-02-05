@@ -7,7 +7,9 @@ import kotlinx.coroutines.await
 import kotlin.js.ExperimentalWasmJsInterop
 
 @OptIn(ExperimentalWasmJsInterop::class)
-actual class Endpoint internal constructor() : Closeable {
+actual class Endpoint internal constructor(
+    private val certificateHashes: List<String> = emptyList()
+) : Closeable {
     actual suspend fun connect(url: String): Connection {
         try {
             val jsTransport = JsWebTransport(url)
@@ -25,8 +27,10 @@ actual class Endpoint internal constructor() : Closeable {
     }
 }
 
-actual fun createClientEndpoint(): Endpoint {
-    return Endpoint()
+actual fun createClientEndpoint(
+    certificateHashes: List<String>
+): Endpoint {
+    return Endpoint(certificateHashes)
 }
 
 actual fun createServerEndpoint(
