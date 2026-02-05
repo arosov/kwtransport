@@ -21,7 +21,7 @@ signing {
 
 // Android Rust build configuration
 cargoNdk {
-    module = "kwtransport-ffi"
+    module = "../kwtransport-ffi"
     targets = arrayListOf("arm64", "arm", "x86", "x86_64")
 }
 
@@ -265,6 +265,12 @@ tasks.named("jsTest") {
 android {
     namespace = "io.github.arosov.kwtransport"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
+    
+    // Link NDK directory to cargoNdk
+    project.afterEvaluate {
+        cargoNdk.ndkDirectory.set(android.ndkDirectory)
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
