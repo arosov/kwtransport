@@ -41,6 +41,11 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+
       - name: Install NDK
         run: sdkmanager "ndk;25.2.9519653"
 
@@ -51,6 +56,7 @@ jobs:
 
       - name: Run Smoke Tests
         run: |
+          export CHROME_BIN=$(which google-chrome)
           ./gradlew :kwtransport:buildRust --no-configuration-cache
           ./gradlew :kwtransport:cleanJvmTest :kwtransport:jvmTest --no-configuration-cache
           ./scripts/run_browser_integration_tests.sh
