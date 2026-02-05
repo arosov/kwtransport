@@ -104,6 +104,17 @@ with `./gradlew :features:logging:build`.
 This project specifically is named kwtransport. It aims to provide a high
 performance wrapper to Rust's wtransport crate with Robusta.
 
+## Implementation & SourceSet Management
+
+The project uses two fundamentally different underlying implementations:
+* **JVM & Android:** These targets are backed by the **Rust `wtransport` crate** via a Robusta JNI bridge.
+* **JS & WASM:** These targets are backed by the **browser's native WebTransport API**.
+
+**Impact on SourceSets:**
+* Logic and configuration specific to the Rust implementation (e.g., `QuicConfig`, `CustomDnsResolver`, low-level tuning) resides in `jvmAndroidMain`.
+* `commonMain` contains only the intersection of capabilities supported by both the Rust crate and the browser API.
+* Avoid moving native-specific or Rust-specific logic to `commonMain` to keep web targets lean and prevent non-functional API exposure.
+
 The jvm target is a priority in part due to testing being faster.
 
 When dealing with jvmTest, always use the target cleanJvmTest before running the tests with jvmTest,
