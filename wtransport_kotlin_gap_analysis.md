@@ -37,7 +37,7 @@ The current Kotlin `Endpoint.createServerEndpoint` exposes:
 
 - **Connection Stats**: Supported (`rttMs`, `lostPackets`, `sentPackets`, `congestionEvents`).
 - **Datagram Events**: Partially Supported. `Connection.maxDatagramSize`. `wtransport` (via Quinn) exposes more granular events or stats which might be useful if asynchronous datagram handling is needed. (Medium Priority)
-- **Congestion Control**: No exposure of congestion controller statistics or configuration. (Low Priority)
+- **Congestion Control**: Supported. `QuicConfig.congestionController` (NewReno, Cubic, Bbr).
 
 ## 4. Error Handling
 
