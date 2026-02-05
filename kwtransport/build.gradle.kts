@@ -21,7 +21,7 @@ signing {
 
 // Android Rust build configuration
 cargoNdk {
-    module = rootProject.projectDir.resolve("kwtransport-ffi").absolutePath
+    module = "../kwtransport-ffi"
     targets = arrayListOf("arm64", "arm", "x86", "x86_64")
 }
 
