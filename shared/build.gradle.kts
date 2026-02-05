@@ -31,6 +31,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
         jvmMain {
             resources.srcDir(layout.buildDirectory.dir("rust-lib"))
