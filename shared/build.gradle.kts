@@ -149,8 +149,16 @@ fun getCurrentPlatform(): String {
 }
 
 tasks.register("printPlatform") {
+    val os = System.getProperty("os.name").lowercase()
+    val arch = System.getProperty("os.arch").lowercase()
+    val platform = when {
+        os.contains("linux") -> if (arch.contains("aarch64") || arch.contains("arm64")) "linux-arm64" else "linux-x64"
+        os.contains("mac") -> if (arch.contains("aarch64") || arch.contains("arm64")) "macos-arm64" else "macos-x64"
+        os.contains("win") -> "windows-x64"
+        else -> "unknown"
+    }
     doLast {
-        println(getCurrentPlatform())
+        println(platform)
     }
 }
 
