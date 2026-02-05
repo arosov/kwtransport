@@ -96,3 +96,14 @@ impl RecvStream {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_create_endpoint() {
+        // This validates that the Endpoint constructor works and the configuration is valid
+        let _endpoint = Endpoint::new();
+    }
+}
