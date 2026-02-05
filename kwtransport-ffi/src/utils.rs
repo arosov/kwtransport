@@ -28,4 +28,19 @@ pub fn apply_transport_config(config: &mut wtransport::config::QuicTransportConf
     if let Some(&val) = settings.get(7) {
         if val >= 0 { let _ = config.datagram_send_buffer_size(val as usize); }
     }
+    if let Some(&val) = settings.get(8) {
+        if val >= 0 {
+            let factory: Option<std::sync::Arc<dyn wtransport::quinn::congestion::ControllerFactory + Send + Sync>> = match val {
+                1 => Some(std::sync::Arc::new(wtransport::quinn::congestion::NewRenoConfig::default())),
+                2 => Some(std::sync::Arc::new(wtransport::quinn::congestion::CubicConfig::default())),
+                3 => {
+                    Some(std::sync::Arc::new(wtransport::quinn::congestion::BbrConfig::default()))
+                }
+                _ => None,
+            };
+            if let Some(f) = factory {
+                config.congestion_controller_factory(f);
+            }
+        }
+    }
 }

@@ -8,7 +8,8 @@ data class QuicConfig(
     val initialMaxStreamDataBidiRemote: Long? = null,
     val initialMaxStreamDataUni: Long? = null,
     val datagramReceiveBufferSize: Long? = null,
-    val datagramSendBufferSize: Long? = null
+    val datagramSendBufferSize: Long? = null,
+    val congestionController: CongestionController? = null
 ) {
     internal fun toLongList(): List<Long> {
         return listOf(
@@ -19,7 +20,8 @@ data class QuicConfig(
             initialMaxStreamDataBidiRemote ?: -1L,
             initialMaxStreamDataUni ?: -1L,
             datagramReceiveBufferSize ?: -1L,
-            datagramSendBufferSize ?: -1L
+            datagramSendBufferSize ?: -1L,
+            congestionController?.ordinal?.toLong() ?: -1L
         )
     }
 }
