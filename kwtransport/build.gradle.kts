@@ -57,6 +57,13 @@ mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
 
+    // Configure Android variants to publish
+    configure(com.vanniktech.maven.publish.AndroidMultiVariantLibrary(
+        variants = listOf("release", "debug"),
+        sourcesJar = true,
+        publishJavadocJar = true
+    ))
+
     pom {
         name.set("kwtransport")
         description.set("High-Performance WebTransport for Kotlin Multiplatform")

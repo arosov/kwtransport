@@ -22,11 +22,15 @@ on:
         description: 'Publish ONLY Android (skips tests and other platforms)'
         type: boolean
         default: true
+      publish-android-debug:
+        description: 'Publish Android DEBUG variant'
+        type: boolean
+        default: false
 
 jobs:
   publish-linux-and-common:
     name: Publish Linux & Common (JS/WASM/Android)
-    if: ${{ github.event.inputs.publish-linux == 'true' || github.event.inputs.publish-android-only == 'true' }}
+    if: ${{ github.event.inputs.publish-linux == 'true' || github.event.inputs.publish-android-only == 'true' || github.event.inputs.publish-android-debug == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,10 +86,15 @@ jobs:
 
       - name: Build and Publish
         run: |
+          if [ "${{ github.event.inputs.publish-android-debug }}" == "true" ]; then
+            echo "Publishing Android Debug..."
+            ./gradlew :kwtransport:publishAndroidDebugPublicationToMavenCentralRepository --no-configuration-cache
+          fi
+          
           if [ "${{ github.event.inputs.publish-android-only }}" == "true" ]; then
-            echo "Publishing Android Only..."
+            echo "Publishing Android Release..."
             ./gradlew :kwtransport:publishAndroidReleasePublicationToMavenCentralRepository --no-configuration-cache
-          else
+          elif [ "${{ github.event.inputs.publish-android-debug }}" != "true" ]; then
             # Build and publish host-specific native binary
             ./gradlew :kwtransport:buildRust --no-configuration-cache
             PLATFORM=$(./gradlew -q :kwtransport:printPlatform)
