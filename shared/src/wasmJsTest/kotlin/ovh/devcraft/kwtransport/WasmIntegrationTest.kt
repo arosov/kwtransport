@@ -26,13 +26,30 @@ class WasmIntegrationTest {
             
             val data = "Hello from WASM".encodeToByteArray()
             pair.send.write(data)
-            println("TEST: Data sent")
+            println("TEST: Data sent: ${data.size} bytes")
             
             val buffer = ByteArray(data.size)
-            val n = pair.recv.read(buffer)
-            println("TEST: Data received ($n bytes)")
+            var totalRead = 0
+            while (totalRead < data.size) {
+                val remaining = data.size - totalRead
+                val tempBuffer = ByteArray(remaining)
+                val n = pair.recv.read(tempBuffer)
+                if (n < 0) {
+                    println("TEST: Stream ended unexpectedly after $totalRead bytes")
+                    break
+                }
+                if (n > 0) {
+                    tempBuffer.copyInto(buffer, totalRead, 0, n)
+                    totalRead += n
+                    println("TEST: Read chunk of $n bytes, total: $totalRead")
+                } else {
+                    kotlinx.coroutines.delay(10)
+                }
+            }
             
-            assertEquals(data.size, n, "Read byte count should match sent byte count")
+            println("TEST: Data received ($totalRead bytes)")
+            
+            assertEquals(data.size, totalRead, "Read byte count should match sent byte count")
             assertContentEquals(data, buffer, "Echoed data should match sent data")
             
             connection.close()
