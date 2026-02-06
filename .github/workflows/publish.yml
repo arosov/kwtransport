@@ -74,6 +74,14 @@ jobs:
           echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
           echo "NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
+      - name: Diagnostic Info
+        run: |
+          echo "Requested Version: ${{ github.event.inputs.version }}"
+          echo "Environment VERSION: $VERSION"
+          ./gradlew :kwtransport:properties | grep "^version:"
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+
       - name: Run Smoke Tests
         if: ${{ github.event.inputs.publish-android-only != 'true' }}
         run: |
@@ -97,8 +105,8 @@ jobs:
             ./gradlew :kwtransport:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
           fi
         env:
-          ANDROID_NDK_HOME: ${{ steps.setup-java.outputs.path }}/../../android/sdk/ndk-bundle # Typical path, but setup-android is better
           VERSION: ${{ github.event.inputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signing_keyId: ${{ secrets.GPG_KEY_ID }}
