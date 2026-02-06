@@ -126,12 +126,17 @@ kotlin {
             implementation(project(":libraries:test-support"))
         }
         
+        jvmMain.dependencies {
+            // Include all native platforms as runtime dependencies so they are
+            // automatically pulled when depending on the JVM artifact.
+            runtimeOnly(project(":native:linux-x64"))
+            runtimeOnly(project(":native:linux-arm64"))
+            runtimeOnly(project(":native:macos-x64"))
+            runtimeOnly(project(":native:macos-arm64"))
+            runtimeOnly(project(":native:windows-x64"))
+        }
+
         jvmTest.dependencies {
-            // For testing, we depend on the native artifact of the current host
-            val platform = getCurrentPlatform()
-            if (platform != "unknown") {
-                implementation(project(":native:$platform"))
-            }
             implementation(project(":libraries:test-support"))
         }
 
