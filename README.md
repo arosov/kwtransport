@@ -34,35 +34,11 @@ dependencies {
 }
 ```
 
-### ⚠️ Important: JVM Native Runtime
-
-If you are targeting the **JVM** (e.g., desktop, server), you must explicitly include the native runtime artifact for your operating system. Since Gradle does not automatically resolve platform-specific JNI binaries for generic "Java" projects, you need to add this manually or use a dynamic selector:
-
-```kotlin
-// Detect current platform to include the correct native library
-val os = System.getProperty("os.name").lowercase()
-val platform = when {
-    os.contains("linux") -> "linux-x64" // or "linux-arm64"
-    os.contains("mac") -> if (System.getProperty("os.arch") == "aarch64") "macos-arm64" else "macos-x64"
-    os.contains("win") -> "windows-x64"
-    else -> "unknown"
-}
-
-dependencies {
-    implementation("io.github.arosov:kwtransport:0.0.2")
-    
-    // Explicitly include native runtime for the current host
-    if (platform != "unknown") {
-        runtimeOnly("io.github.arosov:kwtransport-jvm-$platform:0.0.2")
-    }
-}
-```
-
-**Note:** For Android and Kotlin/Native targets (if supported in the future), Gradle will handle this automatically. This extra step is only required for standard JVM applications.
+**Note:** The JVM artifact automatically includes runtime dependencies for all currently supported native platforms (`linux-x64`, `macos-arm64`, `windows-x64`). You do not need to manually add classifier dependencies unless you are targeting a specific platform exclusively to save space.
 
 ### Supported Platforms
 
-The following platforms are officially supported. For JVM users, append the **Artifact Classifier** to your runtime dependency (e.g., `kwtransport-jvm-linux-x64`).
+The following platforms are officially supported:
 
 | Platform | Architecture | Artifact Classifier | Notes |
 | :--- | :--- | :--- | :--- |
