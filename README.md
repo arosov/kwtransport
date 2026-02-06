@@ -1,5 +1,7 @@
 # kwtransport: High-Performance WebTransport for Kotlin Multiplatform
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.arosov/kwtransport)](https://central.sonatype.com/artifact/io.github.arosov/kwtransport)
+
 `kwtransport` is a Kotlin Multiplatform library that provides a high-performance wrapper around the `wtransport` Rust crate, bringing WebTransport capabilities to your Kotlin applications across JVM, Android, and WebAssembly (WASM) targets. It aims to offer an idiomatic and robust Kotlin API for establishing WebTransport connections, managing streams, and handling datagrams with efficiency and ease.
 
 > [!IMPORTANT]
