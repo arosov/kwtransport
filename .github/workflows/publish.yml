@@ -97,15 +97,15 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.publish-android-debug }}" == "true" ] && [ "${{ github.event.inputs.publish-linux }}" != "true" ]; then
             echo "Publishing Android Debug ONLY..."
-            ./gradlew :kwtransport:publishAndroidDebugPublicationToMavenCentralRepository --no-configuration-cache
+            ./gradlew :kwtransport:publishAndroidDebugPublicationToMavenCentralRepository --no-configuration-cache -PVERSION_NAME=${{ github.event.inputs.version }}
           else
             # Build and publish host-specific native binary
             ./gradlew :kwtransport:buildRust --no-configuration-cache
             PLATFORM=$(./gradlew -q :kwtransport:printPlatform)
-            ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+            ./gradlew :native:$PLATFORM:publishAllPublicationsToMavenCentralRepository --no-configuration-cache -PVERSION_NAME=${{ github.event.inputs.version }}
             
             # Publish core library (includes JS, WASM, Android Debug, JVM Kotlin)
-            ./gradlew :kwtransport:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+            ./gradlew :kwtransport:publishAllPublicationsToMavenCentralRepository --no-configuration-cache -PVERSION_NAME=${{ github.event.inputs.version }}
           fi
         env:
           VERSION: ${{ github.event.inputs.version }}

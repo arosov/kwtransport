@@ -40,9 +40,9 @@ if (file("../local.properties").exists()) {
     }
 }
 
-// Override version from environment variable if provided
-val envVersion = System.getenv("VERSION")
-val finalVersion = if (!envVersion.isNullOrBlank()) {
+// Override version from environment variable or project property if provided
+val envVersion = System.getenv("VERSION") ?: project.findProperty("VERSION_NAME")?.toString()
+val finalVersion = if (!envVersion.isNullOrBlank() && envVersion != "0.0.0") {
     val versionRegex = """^\d+\.\d+\.\d+(-SNAPSHOT)?$""".toRegex()
     if (!versionRegex.matches(envVersion)) {
         throw GradleException("Invalid VERSION environment variable: '$envVersion'. Expected x.y.z or x.y.z-SNAPSHOT")
