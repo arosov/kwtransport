@@ -127,11 +127,11 @@ kotlin {
         }
         
         jvmMain.dependencies {
-            // Include all native platforms as runtime dependencies so they are
-            // automatically pulled when depending on the JVM artifact.
+            // Include supported native platforms as runtime dependencies.
+            // Note: Only platforms currently published to Maven Central should be listed here.
             runtimeOnly(project(":native:linux-x64"))
-            runtimeOnly(project(":native:linux-arm64"))
-            runtimeOnly(project(":native:macos-x64"))
+            // runtimeOnly(project(":native:linux-arm64")) // Not yet published
+            // runtimeOnly(project(":native:macos-x64"))   // Not yet published
             runtimeOnly(project(":native:macos-arm64"))
             runtimeOnly(project(":native:windows-x64"))
         }
