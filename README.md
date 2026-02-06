@@ -30,7 +30,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.arosov:kwtransport:0.0.1")
+    implementation("io.github.arosov:kwtransport:0.0.2")
 }
 ```
 
@@ -49,11 +49,11 @@ val platform = when {
 }
 
 dependencies {
-    implementation("io.github.arosov:kwtransport:0.0.1")
+    implementation("io.github.arosov:kwtransport:0.0.2")
     
     // Explicitly include native runtime for the current host
     if (platform != "unknown") {
-        runtimeOnly("io.github.arosov:kwtransport-jvm-$platform:0.0.1")
+        runtimeOnly("io.github.arosov:kwtransport-jvm-$platform:0.0.2")
     }
 }
 ```
