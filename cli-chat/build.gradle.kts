@@ -11,7 +11,8 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":kwtransport"))
+    // implementation(project(":kwtransport"))
+    implementation("io.github.arosov:kwtransport:0.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 }
 
