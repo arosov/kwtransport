@@ -16,6 +16,48 @@
 *   **Reliable Stream & Datagram Handling:** Provides intuitive APIs for unidirectional, bidirectional streams, and unreliable datagrams.
 *   **TLS Certificate Management:** Integrated handling for self-signed and trusted TLS certificates.
 
+## Installation
+
+### Maven Central
+
+Add the dependency to your `build.gradle.kts`:
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("io.github.arosov:kwtransport:0.0.1")
+}
+```
+
+### ⚠️ Important: JVM Native Runtime
+
+If you are targeting the **JVM** (e.g., desktop, server), you must explicitly include the native runtime artifact for your operating system. Since Gradle does not automatically resolve platform-specific JNI binaries for generic "Java" projects, you need to add this manually or use a dynamic selector:
+
+```kotlin
+// Detect current platform to include the correct native library
+val os = System.getProperty("os.name").lowercase()
+val platform = when {
+    os.contains("linux") -> "linux-x64" // or "linux-arm64"
+    os.contains("mac") -> if (System.getProperty("os.arch") == "aarch64") "macos-arm64" else "macos-x64"
+    os.contains("win") -> "windows-x64"
+    else -> "unknown"
+}
+
+dependencies {
+    implementation("io.github.arosov:kwtransport:0.0.1")
+    
+    // Explicitly include native runtime for the current host
+    if (platform != "unknown") {
+        runtimeOnly("io.github.arosov:kwtransport-jvm-$platform:0.0.1")
+    }
+}
+```
+
+**Note:** For Android and Kotlin/Native targets (if supported in the future), Gradle will handle this automatically. This extra step is only required for standard JVM applications.
+
 ## Getting Started
 
 To get started with `kwtransport`, ensure you have Java (JDK 17 or higher) and a recent version of the Kotlin Multiplatform plugin for Gradle installed.
@@ -26,14 +68,6 @@ To build the entire project:
 
 ```bash
 ./gradlew build
-```
-
-### Running the Sample Application
-
-The `composeApp` module contains a sample application demonstrating `kwtransport` usage. To run it on the JVM:
-
-```bash
-./gradlew :composeApp:run
 ```
 
 ### Running the CLI Chat Application
@@ -64,7 +98,7 @@ The `cli-chat` module provides a simple command-line chat application to demonst
 
 ### Running Tests
 
-To run JVM tests for the `shared` module:
+To run JVM tests for the `kwtransport` module:
 
 ```bash
 ./gradlew :kwtransport:cleanJvmTest :kwtransport:jvmTest
@@ -74,7 +108,7 @@ For other modules or specific targets, replace `:kwtransport` and `:jvmTest` as 
 
 ## API Overview
 
-The core of the `kwtransport` API resides in the `shared` module, primarily within the `io.github.arosov.kwtransport` package. Key classes include:
+The core of the `kwtransport` API resides in the `kwtransport` module, primarily within the `io.github.arosov.kwtransport` package. Key classes include:
 
 *   `Endpoint`: The entry point for creating client and server WebTransport endpoints.
 *   `Connection`: Represents an established WebTransport connection, allowing the opening and accepting of streams and sending/receiving datagrams.
