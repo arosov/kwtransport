@@ -31,8 +31,9 @@ internal object NativeLoader {
             else -> throw RuntimeException("Unsupported operating system: $os")
         }
 
-        val libName = if (extension == "dll") "kwtransport_ffi.dll" else "libkwtransport_ffi.$extension"
-        val resourcePath = "/native/$platform/$libName"
+        val baseName = "kwtransport_ffi"
+        val libFileName = if (extension == "dll") "$baseName-$platform.dll" else "lib$baseName-$platform.$extension"
+        val resourcePath = "/native/$libFileName"
         
         println("NativeLoader: Attempting to load native library for platform=$platform from resource=$resourcePath")
         
@@ -46,7 +47,7 @@ internal object NativeLoader {
 
         val tempDir = Files.createTempDirectory("kwtransport-native").toFile()
         tempDir.deleteOnExit()
-        val tempFile = File(tempDir, libName)
+        val tempFile = File(tempDir, libFileName)
         tempFile.deleteOnExit()
 
         inputStream.use { input ->

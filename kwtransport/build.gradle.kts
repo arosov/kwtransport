@@ -83,6 +83,35 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://github.com/arosov/kwtransport.git")
             url.set("https://github.com/arosov/kwtransport")
         }
+        withXml {
+            val profilesNode = asNode().appendNode("profiles")
+            val group = "io.github.arosov"
+            val version = project.version.toString()
+            
+            fun addProfile(id: String, osFamily: String, osArch: String, artifactId: String) {
+                val profile = profilesNode.appendNode("profile")
+                profile.appendNode("id", id)
+                val activation = profile.appendNode("activation")
+                val os = activation.appendNode("os")
+                os.appendNode("family", osFamily)
+                if (osArch.isNotEmpty()) {
+                    os.appendNode("arch", osArch)
+                }
+                
+                val dependenciesNode = profile.appendNode("dependencies")
+                val dependency = dependenciesNode.appendNode("dependency")
+                dependency.appendNode("groupId", group)
+                dependency.appendNode("artifactId", artifactId)
+                dependency.appendNode("version", version)
+                dependency.appendNode("scope", "runtime")
+            }
+
+            addProfile("linux-x64", "linux", "amd64", "kwtransport-jvm-linux-x64")
+            addProfile("linux-arm64", "linux", "aarch64", "kwtransport-jvm-linux-arm64")
+            addProfile("macos-x64", "mac", "x86_64", "kwtransport-jvm-macos-x64")
+            addProfile("macos-arm64", "mac", "aarch64", "kwtransport-jvm-macos-arm64")
+            addProfile("windows-x64", "windows", "amd64", "kwtransport-jvm-windows-x64")
+        }
     }
 }
 
@@ -127,17 +156,16 @@ kotlin {
         }
         
         jvmMain.dependencies {
-            // Include supported native platforms as runtime dependencies.
-            // Note: Only platforms currently published to Maven Central should be listed here.
-            runtimeOnly(project(":native:linux-x64"))
-            // runtimeOnly(project(":native:linux-arm64")) // Not yet published
-            // runtimeOnly(project(":native:macos-x64"))   // Not yet published
-            runtimeOnly(project(":native:macos-arm64"))
-            runtimeOnly(project(":native:windows-x64"))
+            // Native dependencies are now handled via Maven profiles in the POM 
+            // and Gradle variant-aware resolution to avoid downloading all binaries.
         }
 
         jvmTest.dependencies {
             implementation(project(":libraries:test-support"))
+            // Include supported native platforms for local testing.
+            runtimeOnly(project(":native:linux-x64"))
+            runtimeOnly(project(":native:macos-arm64"))
+            runtimeOnly(project(":native:windows-x64"))
         }
 
         val jvmAndroidMain by creating {
@@ -187,24 +215,27 @@ val buildRustTask = tasks.register("buildRust") {
     val isRelease = project.hasProperty("rust.release")
     val platform = getCurrentPlatform()
     val cargoDir = layout.projectDirectory.dir("../kwtransport-ffi").asFile
-    val targetDir = file("../native/$platform/src/main/resources/native/$platform")
+    // Use the base native resources directory
+    val targetDir = file("../native/$platform/src/main/resources/native")
 
     doLast {
         val osName = System.getProperty("os.name").lowercase()
-        val libName = when {
-            osName.contains("win") -> "kwtransport_ffi.dll"
-            osName.contains("mac") -> "libkwtransport_ffi.dylib"
-            else -> "libkwtransport_ffi.so"
+        val extension = when {
+            osName.contains("win") -> "dll"
+            osName.contains("mac") -> "dylib"
+            else -> "so"
         }
+        val sourceLibName = if (extension == "dll") "kwtransport_ffi.dll" else "libkwtransport_ffi.$extension"
+        val targetLibName = if (extension == "dll") "kwtransport_ffi-$platform.dll" else "libkwtransport_ffi-$platform.$extension"
         
         val targetType = if (isRelease) "release" else "debug"
-        val sourceFile = cargoDir.resolve("target/$targetType/$libName")
+        val sourceFile = cargoDir.resolve("target/$targetType/$sourceLibName")
         targetDir.mkdirs()
         
         if (sourceFile.exists()) {
-             sourceFile.copyTo(File(targetDir, libName), overwrite = true)
+             sourceFile.copyTo(File(targetDir, targetLibName), overwrite = true)
         } else {
-             throw GradleException("Rust build failed to produce $libName at $sourceFile")
+             throw GradleException("Rust build failed to produce $sourceLibName at $sourceFile")
         }
     }
 }
