@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.vanniktech.publish)
     alias(libs.plugins.cargo.ndk.android)
+    alias(libs.plugins.dokka)
     signing
 }
 
@@ -58,10 +59,8 @@ mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
 
-    // Configure Android variant to publish (Debug only to skip release signing requirements)
-    configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
-        variant = "debug"
-    ))
+    // Automatic configuration should handle Dokka and variants when both plugins are applied.
+    // Explicitly setting them via configure() often causes property finality conflicts in KMP.
 
     pom {
         name.set("kwtransport")
