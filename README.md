@@ -58,6 +58,20 @@ dependencies {
 
 **Note:** For Android and Kotlin/Native targets (if supported in the future), Gradle will handle this automatically. This extra step is only required for standard JVM applications.
 
+### Supported Platforms
+
+The following platforms are officially supported. For JVM users, append the **Artifact Classifier** to your runtime dependency (e.g., `kwtransport-jvm-linux-x64`).
+
+| Platform | Architecture | Artifact Classifier | Notes |
+| :--- | :--- | :--- | :--- |
+| **Linux** | x86_64 | `linux-x64` | Standard desktop/server Linux (Ubuntu, Debian, etc.) |
+| **Linux** | ARM64 | `linux-arm64` | Linux on ARM (Raspberry Pi, AWS Graviton, etc.) |
+| **macOS** | x86_64 | `macos-x64` | Intel Macs |
+| **macOS** | ARM64 | `macos-arm64` | Apple Silicon (M1/M2/M3) |
+| **Windows** | x86_64 | `windows-x64` | 64-bit Windows |
+| **Android** | ARM64, ARMv7, x86, x86_64 | *(bundled in AAR)* | Handled automatically by Android Gradle Plugin |
+| **WASM** | `wasm-js` | *(bundled in Klib)* | WebAssembly for Browser targets |
+
 ## Getting Started
 
 To get started with `kwtransport`, ensure you have Java (JDK 17 or higher) and a recent version of the Kotlin Multiplatform plugin for Gradle installed.
