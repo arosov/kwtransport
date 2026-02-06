@@ -65,12 +65,12 @@ The following platforms are officially supported. For JVM users, append the **Ar
 | Platform | Architecture | Artifact Classifier | Notes |
 | :--- | :--- | :--- | :--- |
 | **Linux** | x86_64 | `linux-x64` | Standard desktop/server Linux (Ubuntu, Debian, etc.) |
-| **Linux** | ARM64 | `linux-arm64` | Linux on ARM (Raspberry Pi, AWS Graviton, etc.) |
-| **macOS** | x86_64 | `macos-x64` | Intel Macs |
 | **macOS** | ARM64 | `macos-arm64` | Apple Silicon (M1/M2/M3) |
 | **Windows** | x86_64 | `windows-x64` | 64-bit Windows |
 | **Android** | ARM64, ARMv7, x86, x86_64 | *(bundled in AAR)* | Handled automatically by Android Gradle Plugin |
 | **WASM** | `wasm-js` | *(bundled in Klib)* | WebAssembly for Browser targets |
+
+*Note: `linux-arm64` and `macos-x64` (Intel) are planned but not yet automatically built by the current CI pipeline.*
 
 ## Getting Started
 
